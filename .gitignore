@@ -1,0 +1,10 @@
+*.bak
+*.log
+*.hi
+*.o
+*.dvi
+Frontend/*.hi
+Frontend/*.o
+Grammar/*.hi
+Grammar/*.o
+tests
