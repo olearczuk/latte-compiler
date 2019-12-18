@@ -97,9 +97,3 @@ getExprType expr = case expr of
       expr2Type <- getExprType expr2
       checkType expr2Type [expr1Type] pos expr2
       return expr1Type
-
-    checkType :: TType -> ExpectedTypes -> (Maybe (Int, Int))-> Expression -> Frontend ()
-    checkType t types pos expr =
-      if elem t types
-        then return ()
-        else throwError $ (extractLineColumn pos) ++ (printTree expr) ++ " wrong type"

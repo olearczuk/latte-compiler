@@ -14,6 +14,7 @@ type BlockNumber = Integer
 type ArgsData = [TType]
 type FunctionData = (TType, ArgsData)
 type Expression = Expr (Maybe (Int, Int))
+type Statement = Stmt (Maybe (Int, Int))
 
 builtInFunctions :: [Ident]
 builtInFunctions = [Ident "printInt", Ident "printString", Ident "error",
@@ -24,11 +25,14 @@ comparableTypes = [IInt, SString, BBool]
 
 data Env = Env {
   variables :: M.Map Ident (TType, BlockNumber),
-  functions :: M.Map Ident FunctionData
+  functions :: M.Map Ident FunctionData,
+  actFunctionType :: TType,
+  blockNumber :: Int
 }
 
 initEnv :: Env
-initEnv = Env { variables = M.empty, functions = M.empty }
+initEnv = Env { variables = M.empty, functions = M.empty, 
+                blockNumber = 0, actFunctionType = IInt }
 
 type Frontend a = (ReaderT Env (Except String)) a
 
@@ -55,3 +59,11 @@ lookupFunctionData f pos = do
       "function " ++ (printTree f) ++ " is not defined"
     Just fData -> return fData
 
+nextBlockNumber :: Env -> Env
+nextBlockNumber env = env { blockNumber = 1 + blockNumber env }
+
+checkType :: (Print) a => TType -> ExpectedTypes -> (Maybe (Int, Int))-> a -> Frontend ()
+checkType t types pos instruction =
+  if elem t types
+    then return ()
+    else throwError $ (extractLineColumn pos) ++ (printTree instruction) ++ " wrong type"
