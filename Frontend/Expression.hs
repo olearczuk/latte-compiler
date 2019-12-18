@@ -9,68 +9,71 @@ getExprType :: Expression -> Frontend TType
 getExprType expr = case expr of
   EVar pos x -> lookupVariableType x pos
 
-  ELitInt _ _ -> return IInt
+  ELitInt _ _ -> return iInt
 
-  ELitTrue _ -> return BBool
+  ELitTrue _ -> return bBool
 
-  ELitFalse _ -> return BBool
+  ELitFalse _ -> return bBool
 
   EApp _ (Ident "printInt") exprs ->
-    checkArgs exprs [IInt] expr >> return VVoid
+    checkArgs exprs [(iInt, Ident "x")] expr >> return vVoid
 
   EApp _ (Ident "printString") exprs ->
-    checkArgs exprs [SString] expr >> return VVoid
+    checkArgs exprs [(sString, Ident "x")] expr >> return vVoid
 
   EApp _ (Ident "error") exprs ->
-    checkArgs exprs [] expr >> return VVoid
+    checkArgs exprs [] expr >> return vVoid
 
   EApp _ (Ident "readInt") exprs ->
-    checkArgs exprs [] expr >> return IInt
+    checkArgs exprs [] expr >> return iInt
 
   EApp _ (Ident "readString") exprs ->
-    checkArgs exprs [] expr >> return SString
+    checkArgs exprs [] expr >> return sString
 
   EApp pos f exprs -> do
     (fType, fArgs) <- lookupFunctionData f pos
     checkArgs exprs fArgs expr
     return fType
 
-  EString _ _ -> return SString
+  EString _ _ -> return sString
 
   Neg pos negexpr -> do
     exprType <- getExprType negexpr
-    checkType exprType [IInt] pos negexpr
-    return IInt
+    checkType exprType [iInt] pos negexpr
+    return iInt
 
   Not pos negexpr -> do
     exprType <- getExprType negexpr
-    checkType exprType [BBool] pos negexpr
-    return BBool
+    checkType exprType [bBool] pos negexpr
+    return bBool
 
   EMul pos expr1 _ expr2 -> 
-    checkIfBothSatisfyType [IInt] expr1 expr2 pos
+    checkIfBothSatisfyType [iInt] expr1 expr2 pos
 
   EAdd pos expr1 (Plus _) expr2 -> 
-    checkIfBothSatisfyType [IInt, SString] expr1 expr2 pos
+    checkIfBothSatisfyType [iInt, sString] expr1 expr2 pos
 
 
   EAdd pos expr1 (Minus _) expr2 -> 
-    checkIfBothSatisfyType [IInt] expr1 expr2 pos
+    checkIfBothSatisfyType [iInt] expr1 expr2 pos
 
   ERel pos expr1 (EQU _) expr2 -> 
-    checkIfBothSatisfyType comparableTypes expr1 expr2 pos
+    checkIfBothSatisfyType comparableTypes expr1 expr2 pos >>
+    return bBool
 
   ERel pos expr1 (NE _) expr2 -> 
-    checkIfBothSatisfyType comparableTypes expr1 expr2 pos
+    checkIfBothSatisfyType comparableTypes expr1 expr2 pos >>
+    return bBool
 
   ERel pos expr1 _ expr2 -> 
-    checkIfBothSatisfyType [SString, IInt] expr1 expr2 pos
+    checkIfBothSatisfyType [sString, iInt] expr1 expr2 pos >>
+    return bBool
 
   EAnd pos expr1 expr2 ->
-    checkIfBothSatisfyType [BBool] expr1 expr2 pos
+    checkIfBothSatisfyType [bBool] expr1 expr2 pos
 
   EOr pos expr1 expr2 ->
-    checkIfBothSatisfyType [BBool] expr1 expr2 pos
+    checkIfBothSatisfyType [bBool] expr1 expr2 pos
 
   where
     checkArgs :: [Expression] -> ArgsData -> Expression -> Frontend ()
@@ -84,13 +87,13 @@ getExprType expr = case expr of
       throwError $ (extractLineColumn pos) ++ 
         (printTree (EApp pos x a)) ++ " wrong number of arguments"
 
-    checkArgs (expr:exprsT) (argType:argsT) (EApp pos x a) = do
+    checkArgs (expr:exprsT) ((argType, _):argsT) (EApp pos x a) = do
       exprType <- getExprType expr
       checkType exprType [argType] pos (EApp pos x a)
       checkArgs exprsT argsT (EApp pos x a)
 
     checkIfBothSatisfyType :: ExpectedTypes -> Expression -> Expression -> 
-          (Maybe (Int, Int)) -> Frontend TType
+          InstrPos -> Frontend TType
     checkIfBothSatisfyType types expr1 expr2 pos = do
       expr1Type <- getExprType expr1
       checkType expr1Type types pos expr1

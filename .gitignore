@@ -8,3 +8,4 @@ Frontend/*.o
 Grammar/*.hi
 Grammar/*.o
 tests
+latc_x86

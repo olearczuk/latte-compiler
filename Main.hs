@@ -13,7 +13,7 @@ import Grammar.SkelLatte
 import Grammar.PrintLatte
 import Grammar.AbsLatte
 
-import Frontend.Expression
+import Frontend.Program
 
 import Grammar.ErrM
 
@@ -42,6 +42,7 @@ main = do
         Bad s -> do 
           putStrLn s
           exitFailure
-        Ok tree -> do
-          -- printTree tree
-          exitSuccess
+        Ok tree -> let result = checkProgram tree in
+          case result of
+            Left err -> putStrLn err
+            Right _ -> putStrLn $ printTree tree                                
