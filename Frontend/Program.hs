@@ -5,7 +5,8 @@ import Frontend.Utils
 import Frontend.Declaration
 import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.State
 
-checkProgram :: Program InstrPos -> Either String ()
+checkProgram :: Program InstrPos -> Either String [FuncWithData]
 checkProgram (Program _ decls) =
-  runExcept $ runReaderT (checkDecls decls) initEnv
+  runExcept $ runReaderT (evalStateT (checkDecls decls) initStore) initEnv 

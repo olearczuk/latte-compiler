@@ -45,4 +45,6 @@ main = do
         Ok tree -> let result = checkProgram tree in
           case result of
             Left err -> putStrLn err
-            Right _ -> putStrLn $ printTree tree                                
+            Right res -> do
+              putStrLn $ printTree tree
+              -- print res                          

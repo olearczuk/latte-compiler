@@ -4,13 +4,13 @@ import Frontend.Utils
 import Frontend.Statement
 import qualified Data.Map as M
 import Control.Monad.Reader
+import Control.Monad.State
 import Grammar.AbsLatte
 
-checkDecls :: [TopDef InstrPos] -> Frontend ()
+checkDecls :: [TopDef InstrPos] -> Frontend [FuncWithData]
 checkDecls topDefs = do
   f <- execDecls topDefs
   local f $ checkFunctionsBody topDefs
-  return ()
 
 execDecls :: [TopDef InstrPos] -> Frontend (Env -> Env)
 execDecls [] = do
@@ -31,14 +31,18 @@ execDecl (FnDef pos fType f args stmt) = do
   let newEnv = actEnv { functions = M.insert f (fType, functionArgs) $ functions actEnv }
   return $ \_ -> newEnv
 
-checkFunctionsBody :: [TopDef InstrPos] -> Frontend ()
-checkFunctionsBody [] = return ()
+checkFunctionsBody :: [TopDef InstrPos] -> Frontend [FuncWithData]
+checkFunctionsBody [] = return []
 checkFunctionsBody (FnDef pos fType f args stmt:fnDefT) = do
-  (fType, args) <- lookupFunctionData f pos
-  fArgs <- initArguments args
+  (fType, fArgs) <- lookupFunctionData f pos
+  modify $ \store -> store { localVarsCounter = 0 }
+  fArgs <- initArguments fArgs
   local (\env -> fArgs $ env { actFunctionType = fType }) $ 
     checkStmt $ BStmt Nothing $ stmt
-  checkFunctionsBody fnDefT
+  counter <- gets localVarsCounter
+  tail <- checkFunctionsBody fnDefT
+  return ((FnDef pos fType f args stmt, counter):tail)
+  -- return tail
 
 initArguments :: [(TType, Ident)] -> Frontend (Env -> Env)
 initArguments args = local nextBlockNumber $ initArgumentsAux args id

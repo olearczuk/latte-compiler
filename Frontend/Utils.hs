@@ -2,6 +2,7 @@ module Frontend.Utils where
 
 import Control.Monad.Reader
 import Control.Monad.Except
+import Control.Monad.State
 import Data.Maybe
 import Grammar.AbsLatte
 import Grammar.PrintLatte
@@ -13,10 +14,13 @@ type TType = Type InstrPos
 type IItem = Item InstrPos
 type ExpectedTypes = [TType]
 type BlockNumber = Integer
+type VarsCounter = Integer
 type ArgsData = [(TType, Ident)]
 type FunctionData = (TType, ArgsData)
 type Expression = Expr InstrPos
 type Statement = Stmt InstrPos
+
+type FuncWithData = (TopDef InstrPos, VarsCounter)
 
 builtInFunctions :: [Ident]
 builtInFunctions = [Ident "printInt", Ident "printString", Ident "error",
@@ -45,7 +49,14 @@ initEnv :: Env
 initEnv = Env { variables = M.empty, functions = M.empty, 
                 blockNumber = 0, actFunctionType = iInt }
 
-type Frontend a = (ReaderT Env (Except String)) a
+data Store = Store {
+  localVarsCounter :: Integer
+}
+
+initStore :: Store
+initStore = Store { localVarsCounter = 0 }
+
+type Frontend a = (StateT Store (ReaderT Env (Except String))) a
 
 extractLineColumn :: InstrPos -> String
 extractLineColumn pos =

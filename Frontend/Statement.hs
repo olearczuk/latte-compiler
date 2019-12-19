@@ -5,6 +5,7 @@ import Frontend.Utils
 import Frontend.Expression
 
 import Control.Monad.Reader
+import Control.Monad.State
 
 checkStmts :: [Statement] -> Frontend (Env -> Env)
 checkStmts [] = return id
@@ -26,6 +27,7 @@ checkStmt stmt = case stmt of
         actEnv <- ask
         return $ \env -> actEnv
       (itemsH:itemsT) -> do
+        modify $ \store -> store {localVarsCounter = localVarsCounter store + 1}
         f <- execSingleVarDecl itemsH varType
         local f $ checkStmt (Decl pos varType itemsT)
 
