@@ -27,8 +27,7 @@ execDecl (FnDef pos fType f args stmt) = do
   checkIfFunctionDefined f pos (FnDef pos fType f args stmt)
   actEnv <- ask
 
-  let functionArgs = map (\(Arg _ argType argId) -> (argType, argId)) args
-  let newEnv = actEnv { functions = M.insert f (fType, functionArgs) $ functions actEnv }
+  let newEnv = actEnv { functions = M.insert f (fType, args) $ functions actEnv }
   return $ \_ -> newEnv
 
 checkFunctionsBody :: [TopDef InstrPos] -> Frontend [FuncWithData]
@@ -42,13 +41,11 @@ checkFunctionsBody (FnDef pos fType f args stmt:fnDefT) = do
   counter <- gets localVarsCounter
   tail <- checkFunctionsBody fnDefT
   return ((FnDef pos fType f args stmt, counter):tail)
-  -- return tail
 
-initArguments :: [(TType, Ident)] -> Frontend (Env -> Env)
-initArguments args = local nextBlockNumber $ initArgumentsAux args id
-  where
-    initArgumentsAux :: [(TType, Ident)] -> (Env -> Env) -> Frontend (Env -> Env)
-    initArgumentsAux [] acc = return acc
-    initArgumentsAux ((argType, argId):argsT) acc = do
-      f <- execSingleVarDecl (NoInit Nothing argId) argType
-      initArgumentsAux argsT $ acc . f
+initArguments :: [Arg InstrPos] -> Frontend (Env -> Env)
+initArguments [] = do
+  curEnv <- ask
+  return $ \env -> curEnv
+initArguments ((Arg pos argType argId):argsT) = do
+      f <- execSingleVarDecl (NoInit pos argId) argType
+      local f $ initArguments argsT

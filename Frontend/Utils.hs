@@ -15,8 +15,7 @@ type IItem = Item InstrPos
 type ExpectedTypes = [TType]
 type BlockNumber = Integer
 type VarsCounter = Integer
-type ArgsData = [(TType, Ident)]
-type FunctionData = (TType, ArgsData)
+type FunctionData = (TType, [Arg InstrPos])
 type Expression = Expr InstrPos
 type Statement = Stmt InstrPos
 
@@ -58,18 +57,17 @@ initStore = Store { localVarsCounter = 0 }
 
 type Frontend a = (StateT Store (ReaderT Env (Except String))) a
 
-extractLineColumn :: InstrPos -> String
-extractLineColumn pos =
+extractLineColumn :: (Print a) => a -> InstrPos -> String
+extractLineColumn ins pos =
   let (line, column) = fromJust pos in
-  (show line) ++ ":" ++ (show column) ++ ": "
+  (show line) ++ ":" ++ (show column) ++ ": " ++ (printTree ins)
 
 lookupVariableType :: Ident -> InstrPos -> Frontend TType
 lookupVariableType x pos = do
   vars <- asks variables
   let val = M.lookup x vars
   case val of 
-    Nothing ->  throwError $ (extractLineColumn pos) ++ 
-      "variable " ++ (printTree x) ++ " is not defined"
+    Nothing ->  throwError $ (extractLineColumn x pos) ++ " no such variable"
     Just (v, blockNumber) -> return v
 
 lookupFunctionData :: Ident -> InstrPos -> Frontend FunctionData
@@ -77,8 +75,7 @@ lookupFunctionData f pos = do
   functions <- asks functions
   let functionData = M.lookup f functions
   case functionData of
-    Nothing -> throwError $ (extractLineColumn pos) ++ 
-      "function " ++ (printTree f) ++ " is not defined"
+    Nothing -> throwError $ (extractLineColumn f pos) ++ " no such function"
     Just fData -> return fData
 
 nextBlockNumber :: Env -> Env
@@ -95,7 +92,7 @@ checkType :: (Print a) => TType -> ExpectedTypes -> InstrPos -> a -> Frontend ()
 checkType t types pos instruction =
   case find (isSameType t) types of
     Just _ -> return ()
-    Nothing -> throwError $ (extractLineColumn pos) ++ (printTree instruction) ++ " wrong type"
+    Nothing -> throwError $ (extractLineColumn instruction pos) ++ " wrong type"
 
 checkIfVariableDefined :: (Print a) => Ident -> InstrPos -> a -> Frontend ()
 checkIfVariableDefined x pos instruction = do
@@ -105,7 +102,7 @@ checkIfVariableDefined x pos instruction = do
   case val of
     Just (_, blockNumber) ->
       if blockNumber == actBlockNumber
-        then throwError $ (extractLineColumn pos) ++ (printTree instruction) ++ "is already defined"
+        then throwError $ (extractLineColumn instruction pos) ++ " is already defined"
         else return ()
     Nothing -> return ()
 
@@ -119,11 +116,11 @@ addVariable x varType = do
 checkIfFunctionDefined :: (Print a) => Ident -> InstrPos -> a -> Frontend ()
 checkIfFunctionDefined f pos instruction = do
   if f `elem` builtInFunctions
-    then throwError $ (extractLineColumn pos) ++ (printTree instruction) ++ " built in function"
+    then throwError $ (extractLineColumn instruction pos) ++ " built in function"
   else do
     functions <- asks functions
     let functionData = M.lookup f functions
     case functionData of
       Just _ ->
-        throwError $ (extractLineColumn pos) ++ (printTree instruction) ++ " function is already defined"
+        throwError $ (extractLineColumn instruction pos) ++ " function is already defined"
       Nothing -> return ()

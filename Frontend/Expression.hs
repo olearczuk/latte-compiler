@@ -16,10 +16,10 @@ getExprType expr = case expr of
   ELitFalse _ -> return bBool
 
   EApp _ (Ident "printInt") exprs ->
-    checkArgs exprs [(iInt, Ident "x")] expr >> return vVoid
+    checkArgs exprs [(Arg Nothing iInt (Ident "x"))] expr >> return vVoid
 
   EApp _ (Ident "printString") exprs ->
-    checkArgs exprs [(sString, Ident "x")] expr >> return vVoid
+    checkArgs exprs [(Arg Nothing sString (Ident "x"))] expr >> return vVoid
 
   EApp _ (Ident "error") exprs ->
     checkArgs exprs [] expr >> return vVoid
@@ -76,27 +76,45 @@ getExprType expr = case expr of
     checkIfBothSatisfyType [bBool] expr1 expr2 pos
 
   where
-    checkArgs :: [Expression] -> ArgsData -> Expression -> Frontend ()
+    checkArgs :: [Expression] -> [Arg InstrPos] -> Expression -> Frontend ()
     checkArgs [] [] _ = return ()
 
     checkArgs exprs [] (EApp pos x a) =
-      throwError $ (extractLineColumn pos) ++ 
-        (printTree (EApp pos x a)) ++ " wrong number of arguments"
+      throwError $ (extractLineColumn (EApp pos x a) pos) ++ " wrong number of arguments"
 
     checkArgs [] args (EApp pos x a) = 
-      throwError $ (extractLineColumn pos) ++ 
-        (printTree (EApp pos x a)) ++ " wrong number of arguments"
+      throwError $ (extractLineColumn (EApp pos x a) pos) ++ " wrong number of arguments"
 
-    checkArgs (expr:exprsT) ((argType, _):argsT) (EApp pos x a) = do
+    checkArgs (expr:exprsT) ((Arg _ argType _):argsT) (EApp pos x a) = do
       exprType <- getExprType expr
-      checkType exprType [argType] pos (EApp pos x a)
+      let exprPos = getExprPos expr
+      checkType exprType [argType] exprPos expr
       checkArgs exprsT argsT (EApp pos x a)
 
     checkIfBothSatisfyType :: ExpectedTypes -> Expression -> Expression -> 
           InstrPos -> Frontend TType
     checkIfBothSatisfyType types expr1 expr2 pos = do
       expr1Type <- getExprType expr1
-      checkType expr1Type types pos expr1
+      let expr1Pos = getExprPos expr1
+      checkType expr1Type types expr1Pos expr1
+
       expr2Type <- getExprType expr2
-      checkType expr2Type [expr1Type] pos expr2
+      let expr2Pos = getExprPos expr2
+      checkType expr2Type [expr1Type] expr2Pos expr2
       return expr1Type
+
+getExprPos :: Expression -> InstrPos
+getExprPos expr = case expr of
+  EVar pos _ -> pos
+  ELitInt pos _ -> pos
+  ELitTrue pos -> pos
+  ELitFalse pos -> pos
+  EApp pos _ _ -> pos
+  EString pos _ -> pos
+  Neg pos _ -> pos
+  Not pos _ -> pos
+  EMul pos _ _ _ -> pos
+  EAdd pos _ _ _ -> pos
+  ERel pos _ _ _ -> pos
+  EAnd pos _ _ -> pos
+  EOr pos _ _ -> pos

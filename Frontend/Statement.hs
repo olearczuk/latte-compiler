@@ -35,7 +35,8 @@ checkStmt stmt = case stmt of
   Ass pos x expr -> do
     t <- lookupVariableType x pos
     exprType <- getExprType expr
-    checkType exprType [t] pos stmt
+    let exprPos = getExprPos expr
+    checkType exprType [t] exprPos expr
     return id
 
   Incr pos x -> do
@@ -50,8 +51,9 @@ checkStmt stmt = case stmt of
 
   Ret pos expr -> do
     exprType <- getExprType expr
+    let exprPos = getExprPos expr
     fType <- asks actFunctionType
-    checkType exprType [fType] pos stmt
+    checkType exprType [fType] exprPos expr
     return id
 
   VRet pos -> do
@@ -61,20 +63,23 @@ checkStmt stmt = case stmt of
 
   Cond pos expr stmt -> local nextBlockNumber $ do
     exprType <- getExprType expr
-    checkType exprType [bBool] pos expr
+    let exprPos = getExprPos expr
+    checkType exprType [bBool] exprPos expr
     checkStmt stmt
     return id
 
   CondElse pos expr stmt1 stmt2 -> local nextBlockNumber $ do
     exprType <- getExprType expr
-    checkType exprType [bBool] pos expr
+    let exprPos = getExprPos expr
+    checkType exprType [bBool] exprPos expr
     checkStmt stmt1
     checkStmt stmt2
     return id
 
   While pos expr stmt -> local nextBlockNumber $ do
     exprType <- getExprType expr
-    checkType exprType [bBool] pos expr
+    let exprPos = getExprPos expr
+    checkType exprType [bBool] exprPos expr
     checkStmt stmt
 
   SExp _ expr ->
@@ -90,5 +95,6 @@ execSingleVarDecl item varType =
     Init pos x expr -> do
       checkIfVariableDefined x pos item
       exprType <- getExprType expr
-      checkType exprType [varType] pos expr
+      let exprPos = getExprPos expr
+      checkType exprType [varType] exprPos expr
       addVariable x varType
