@@ -18,8 +18,9 @@ type VarsCounter = Integer
 type FunctionData = (TType, [Arg InstrPos])
 type Expression = Expr InstrPos
 type Statement = Stmt InstrPos
+type ArgToAddress = (M.Map Ident (Int, TType))
 
-type FuncWithData = (TopDef InstrPos, VarsCounter)
+type FuncWithData = (TopDef InstrPos, VarsCounter, ArgToAddress)
 
 builtInFunctions :: [Ident]
 builtInFunctions = [Ident "printInt", Ident "printString", Ident "error",
@@ -49,11 +50,12 @@ initEnv = Env { variables = M.empty, functions = M.empty,
                 blockNumber = 0, actFunctionType = iInt }
 
 data Store = Store {
-  localVarsCounter :: Integer
+  localVarsCounter :: Integer,
+  argToAddress :: ArgToAddress
 }
 
 initStore :: Store
-initStore = Store { localVarsCounter = 0 }
+initStore = Store { localVarsCounter = 0, argToAddress = M.empty }
 
 type Frontend a = (StateT Store (ReaderT Env (Except String))) a
 

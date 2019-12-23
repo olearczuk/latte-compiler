@@ -7,16 +7,20 @@ import Frontend.Expression
 import Control.Monad.Reader
 import Control.Monad.State
 
-checkStmts :: [Statement] -> Frontend (Env -> Env)
-checkStmts [] = return id
+checkStmts :: [Statement] -> Frontend ((Env -> Env), Bool)
+checkStmts stmts = checkStmtsAux stmts False
+  where
+    checkStmtsAux :: [Statement] -> Bool -> Frontend ((Env -> Env), Bool)
+    checkStmtsAux [] acc = return (id, acc)
 
-checkStmts (stmt:stmtT) = do
-  stmtResult <- checkStmt stmt
-  local stmtResult $ checkStmts stmtT
+    checkStmtsAux (stmt:stmtT) acc = do
+      (stmtResult, wasReturn) <- checkStmt stmt
+      local stmtResult $ checkStmtsAux stmtT (acc || wasReturn)
 
-checkStmt :: Statement -> Frontend (Env -> Env)
+
+checkStmt :: Statement -> Frontend ((Env -> Env), Bool)
 checkStmt stmt = case stmt of
-  Empty _ -> return id
+  Empty _ -> return (id, False)
 
   BStmt _ (Block _ stmts) ->
     local nextBlockNumber $ checkStmts stmts
@@ -25,7 +29,7 @@ checkStmt stmt = case stmt of
     case items of
       [] -> do
         actEnv <- ask
-        return $ \env -> actEnv
+        return (\env -> actEnv, False)
       (itemsH:itemsT) -> do
         modify $ \store -> store {localVarsCounter = localVarsCounter store + 1}
         f <- execSingleVarDecl itemsH varType
@@ -37,53 +41,63 @@ checkStmt stmt = case stmt of
     exprType <- getExprType expr
     let exprPos = getExprPos expr
     checkType exprType [t] exprPos expr
-    return id
+    return (id, False)
 
   Incr pos x -> do
     t <- lookupVariableType x pos
     checkType t [iInt] pos stmt
-    return id
+    return (id, False)
 
   Decr pos x -> do
     t <- lookupVariableType x pos
     checkType t [iInt] pos stmt
-    return id
+    return (id, False)
 
   Ret pos expr -> do
     exprType <- getExprType expr
     let exprPos = getExprPos expr
     fType <- asks actFunctionType
     checkType exprType [fType] exprPos expr
-    return id
+    return (id, True)
 
   VRet pos -> do
     fType <- asks actFunctionType
     checkType fType [vVoid] pos stmt
-    return id
+    return (id, True)
 
   Cond pos expr stmt -> local nextBlockNumber $ do
     exprType <- getExprType expr
     let exprPos = getExprPos expr
     checkType exprType [bBool] exprPos expr
     checkStmt stmt
-    return id
+    case expr of
+      ELitTrue _ -> return (id, True)
+      _ -> return (id, False)
 
   CondElse pos expr stmt1 stmt2 -> local nextBlockNumber $ do
     exprType <- getExprType expr
     let exprPos = getExprPos expr
     checkType exprType [bBool] exprPos expr
-    checkStmt stmt1
-    checkStmt stmt2
-    return id
+    (_, wasReturn1) <- checkStmt stmt1
+    (_, wasReturn2) <- checkStmt stmt2
+    let wasReturn = case expr of
+          ELitTrue _ -> wasReturn1
+          ELitFalse _ -> wasReturn2
+          _ -> wasReturn1 && wasReturn2
+    return (id, wasReturn)
 
   While pos expr stmt -> local nextBlockNumber $ do
     exprType <- getExprType expr
     let exprPos = getExprPos expr
     checkType exprType [bBool] exprPos expr
-    checkStmt stmt
+    (_, wasReturn) <- checkStmt stmt
+    -- TODO change
+    case expr of
+      ELitTrue _ -> return (id, wasReturn)
+      _ -> return (id, False)
 
   SExp _ expr ->
-    getExprType expr >> return id
+    getExprType expr >> return (id, False)
 
 
 execSingleVarDecl :: IItem -> TType -> Frontend (Env -> Env)

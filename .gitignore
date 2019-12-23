@@ -9,3 +9,4 @@ Grammar/*.hi
 Grammar/*.o
 tests
 latc_x86
+frontend_test.py

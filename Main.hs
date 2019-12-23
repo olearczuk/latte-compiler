@@ -27,7 +27,7 @@ usage :: IO ()
 usage = do
   putStrLn $ unlines
     [ "usage: Call with following argument:"
-    , "  (file)   Interpret a given file."
+    , "  (file)   Compile a given file."
     ]
   exitFailure
 
@@ -44,7 +44,7 @@ main = do
           exitFailure
         Ok tree -> let result = checkProgram tree in
           case result of
-            Left err -> putStrLn err
+            Left err -> putStrLn err >> exitFailure
             Right res -> do
               putStrLn $ printTree tree
-              -- print res                          
+              print res                          

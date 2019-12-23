@@ -5,6 +5,7 @@ import Frontend.Statement
 import qualified Data.Map as M
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Except
 import Grammar.AbsLatte
 
 checkDecls :: [TopDef InstrPos] -> Frontend [FuncWithData]
@@ -34,18 +35,27 @@ checkFunctionsBody :: [TopDef InstrPos] -> Frontend [FuncWithData]
 checkFunctionsBody [] = return []
 checkFunctionsBody (FnDef pos fType f args stmt:fnDefT) = do
   (fType, fArgs) <- lookupFunctionData f pos
-  modify $ \store -> store { localVarsCounter = 0 }
+  modify $ \store -> store { localVarsCounter = 0, argToAddress = M.empty}
   fArgs <- initArguments fArgs
-  local (\env -> fArgs $ env { actFunctionType = fType }) $ 
-    checkStmt $ BStmt Nothing $ stmt
-  counter <- gets localVarsCounter
-  tail <- checkFunctionsBody fnDefT
-  return ((FnDef pos fType f args stmt, counter):tail)
+  (_, wasReturn) <- local (\env -> fArgs $ env { actFunctionType = fType }) $ 
+                      checkStmt $ BStmt Nothing $ stmt
+  if wasReturn == False && (isSameType fType (Void Nothing)) == False
+    then
+      throwError $ extractLineColumn f pos ++ " missing returns"
+    else do
+      counter <- gets localVarsCounter
+      toAddress <- gets argToAddress
+      tail <- checkFunctionsBody fnDefT
+      return ((FnDef pos fType f args stmt, counter, toAddress):tail)
 
 initArguments :: [Arg InstrPos] -> Frontend (Env -> Env)
 initArguments [] = do
-  curEnv <- ask
-  return $ \env -> curEnv
+  vars <- asks variables
+  return $ \env -> env { variables = vars }
 initArguments ((Arg pos argType argId):argsT) = do
-      f <- execSingleVarDecl (NoInit pos argId) argType
-      local f $ initArguments argsT
+  f <- execSingleVarDecl (NoInit pos argId) argType
+  toAddress <- gets argToAddress
+  let mapSize = M.size toAddress
+  modify $ \store -> store { 
+    argToAddress = M.insert argId (8 + mapSize * 4, argType) toAddress }
+  local f $ initArguments argsT
