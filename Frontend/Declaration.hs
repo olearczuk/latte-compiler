@@ -8,7 +8,7 @@ import Control.Monad.State
 import Control.Monad.Except
 import Grammar.AbsLatte
 
-checkDecls :: [TopDef InstrPos] -> Frontend [FuncWithData]
+checkDecls :: [TopDef InstrPos] -> Frontend ([FuncWithData], FunctionsRetTypes)
 checkDecls topDefs = do
   f <- execDecls topDefs
   local f $ checkFunctionsBody topDefs
@@ -31,8 +31,8 @@ execDecl (FnDef pos fType f args stmt) = do
   let newEnv = actEnv { functions = M.insert f (fType, args) $ functions actEnv }
   return $ \_ -> newEnv
 
-checkFunctionsBody :: [TopDef InstrPos] -> Frontend [FuncWithData]
-checkFunctionsBody [] = return []
+checkFunctionsBody :: [TopDef InstrPos] -> Frontend ([FuncWithData], FunctionsRetTypes)
+checkFunctionsBody [] = return ([], M.empty)
 checkFunctionsBody (FnDef pos fType f args stmt:fnDefT) = do
   (fType, fArgs) <- lookupFunctionData f pos
   modify $ \store -> store { localVarsCounter = 0, argToAddress = M.empty}
@@ -45,8 +45,9 @@ checkFunctionsBody (FnDef pos fType f args stmt:fnDefT) = do
     else do
       counter <- gets localVarsCounter
       toAddress <- gets argToAddress
-      tail <- checkFunctionsBody fnDefT
-      return ((FnDef pos fType f args stmt, counter, toAddress):tail)
+      (funcWithData, funcTypes) <- checkFunctionsBody fnDefT
+      return ((FnDef pos fType f args stmt, counter, toAddress):funcWithData, 
+        M.insert f fType funcTypes)
 
 initArguments :: [Arg InstrPos] -> Frontend (Env -> Env)
 initArguments [] = do

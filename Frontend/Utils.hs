@@ -21,6 +21,7 @@ type Statement = Stmt InstrPos
 type ArgToAddress = (M.Map Ident (Int, TType))
 
 type FuncWithData = (TopDef InstrPos, VarsCounter, ArgToAddress)
+type FunctionsRetTypes = M.Map Ident TType
 
 builtInFunctions :: [Ident]
 builtInFunctions = [Ident "printInt", Ident "printString", Ident "error",
