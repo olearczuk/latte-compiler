@@ -2,7 +2,7 @@
 module Main where
 
 
-import System.IO ( stdin, hGetContents )
+import System.IO ( stdin, hGetContents, stderr, hPutStr )
 import System.Environment ( getArgs, getProgName )
 import System.Exit ( exitFailure, exitSuccess )
 import Control.Monad (when)
@@ -12,8 +12,9 @@ import Grammar.ParLatte
 import Grammar.SkelLatte
 import Grammar.PrintLatte
 import Grammar.AbsLatte
-
 import Frontend.Program
+import Backend.Program
+import System.Process
 
 import Grammar.ErrM
 
@@ -36,15 +37,36 @@ main = do
   args <- getArgs 
   case args of
     [] -> usage
-    (fileName:_) -> do
-      input <- readFile fileName
+    (path:_) -> do
+      input <- readFile path
       case pProgram (myLexer $ input) of
         Bad s -> do 
           putStrLn s
+          hPutStr stderr "ERROR\n"
           exitFailure
         Ok tree -> let result = checkProgram tree in
           case result of
             Left err -> putStrLn err >> exitFailure
             Right res -> do
-              putStrLn $ printTree tree
-              print res                          
+              hPutStr stderr "OK\n"
+              let (fileName, directory) = getFileNameAndDir path
+                  content = genProgram res
+                  outputFilePath = (take (length path - 3) path) ++ "s"
+              writeFile outputFilePath content
+              generateExecutable outputFilePath
+                       
+
+getFileNameAndDir :: String -> (String, String)
+getFileNameAndDir path = 
+  aux (reverse path) "" where
+    aux "" acc = (take (length acc - 4) acc, "")
+    aux ('/':t) acc = (take (length acc - 4) acc, reverse $ '/':t)
+    aux (h:t) acc = aux t (h:acc) 
+
+generateExecutable :: String -> IO ()
+generateExecutable path = do
+  let execFile = take (length path - 2) path
+  let oFile = execFile ++ ".o"
+  readProcess "gcc" ["-m32", "-c", path, "-o", oFile] ""
+  readProcess "gcc" ["-m32", "-o", execFile, oFile, "lib/runtime.o"] ""
+  return ()

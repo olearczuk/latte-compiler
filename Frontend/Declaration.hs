@@ -32,7 +32,7 @@ execDecl (FnDef pos fType f args stmt) = do
   return $ \_ -> newEnv
 
 checkFunctionsBody :: [TopDef InstrPos] -> Frontend ([FuncWithData], FunctionsRetTypes)
-checkFunctionsBody [] = return ([], M.empty)
+checkFunctionsBody [] = return ([], builtInFunctionsTypes)
 checkFunctionsBody (FnDef pos fType f args stmt:fnDefT) = do
   (fType, fArgs) <- lookupFunctionData f pos
   modify $ \store -> store { localVarsCounter = 0, argToAddress = M.empty}

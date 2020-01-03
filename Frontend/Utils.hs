@@ -27,6 +27,10 @@ builtInFunctions :: [Ident]
 builtInFunctions = [Ident "printInt", Ident "printString", Ident "error",
                     Ident "readInt", Ident "readString"]
 
+builtInFunctionsTypes :: FunctionsRetTypes
+builtInFunctionsTypes = M.fromList [(Ident "printInt", vVoid), (Ident "printString", vVoid), (Ident "error", vVoid),
+                                  (Ident "readInt", iInt), (Ident "readString", sString)]
+
 iInt :: TType
 sString :: TType
 bBool :: TType
