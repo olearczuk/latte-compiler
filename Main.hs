@@ -41,12 +41,13 @@ main = do
       input <- readFile path
       case pProgram (myLexer $ input) of
         Bad s -> do 
-          putStrLn s
           hPutStr stderr "ERROR\n"
+          putStrLn s
           exitFailure
         Ok tree -> let result = checkProgram tree in
           case result of
-            Left err -> putStrLn err >> exitFailure
+            Left err -> 
+              hPutStr stderr "ERROR\n" >> putStrLn err >> exitFailure
             Right res -> do
               hPutStr stderr "OK\n"
               let (fileName, directory) = getFileNameAndDir path

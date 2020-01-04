@@ -87,6 +87,7 @@ genStmt stmt = case stmt of
       case item of
         NoInit _ x -> do
           case varType of
+            Str _ -> addLines ["call emptyString", "movl %eax, " ++ (show loc) ++ "(%ebp)"]
             _ -> addLine ("movl $0, " ++ (show loc) ++ "(%ebp)")
           saveVarOnStack x varType
         Init _ x expr -> do

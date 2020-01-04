@@ -34,8 +34,6 @@ int readInt() {
     return n;
 }
 
-
-
 char* addStrings(const char *s1, const char *s2) {
     char *result = malloc(strlen(s1) + strlen(s2) + 1);
     strcpy (result, s1);
@@ -45,4 +43,10 @@ char* addStrings(const char *s1, const char *s2) {
 
 int compareStrings(const char *s1, const char *s2) {
     return strcmp(s1, s2);
+}
+
+char* emptyString() {
+    char *result = malloc(sizeof(char));
+    strcpy (result, "");
+    return result;
 }
