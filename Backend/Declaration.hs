@@ -5,10 +5,28 @@ import Backend.Utils
 import Grammar.AbsLatte
 import Grammar.PrintLatte
 import Control.Monad.Reader
+import Control.Monad.State
+import qualified Data.Map as M
 
 genDecl :: [FuncWithData] -> Backend ()
-genDecl [] = addLine "\n"
-genDecl ((FnDef _ fType fIdent _ (Block _ stmts), varsCounter, argToAddress):decls) = do
+genDecl fData = do
+  addLine ".text\n"
+  strConsts <- asks stringConstants
+  genConsts $ M.toList strConsts
+  addLine ".global main\n"
+  genDeclAux fData
+
+genConsts :: [(String, String)] -> Backend ()
+genConsts [] = return ()
+genConsts ((constVal, constName):constT) = do
+  let constVal' = (take (length constVal - 1) constVal) ++ "\\0\""
+  addLine $ constName ++ ": .ascii " ++ constVal'
+  genConsts constT
+
+genDeclAux :: [FuncWithData] -> Backend ()
+genDeclAux [] = addLine "\n"
+genDeclAux ((FnDef _ fType fIdent _ (Block _ stmts), varsCounter, argToAddress):decls) = do
+  modify $ \store -> store { curLoc = 0 }
   let stmts' = case fType of
         Void _ -> stmts ++ [VRet Nothing]
         _ -> stmts
@@ -17,4 +35,4 @@ genDecl ((FnDef _ fType fIdent _ (Block _ stmts), varsCounter, argToAddress):dec
     addLines ["pushl %ebp", "movl %esp, %ebp", 
               "subl $" ++ (show $ 4 *varsCounter) ++ ", %esp"]
     genStmts stmts'
-  genDecl decls
+  genDeclAux decls

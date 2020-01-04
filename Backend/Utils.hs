@@ -18,6 +18,7 @@ type FuncWithData = (TopDef InstrPos, VarsCounter, ArgToAddress)
 type FunctionsRetTypes = M.Map Ident TType
 type Expression = Expr InstrPos
 type Statement = Stmt InstrPos
+type StringConstants = M.Map String String
 
 iInt :: TType
 sString :: TType
@@ -31,7 +32,8 @@ vVoid = Void Nothing
 data Env = Env {
   fRetTypes :: FunctionsRetTypes,
   variables :: ArgToAddress,
-  linePrefix :: String
+  linePrefix :: String,
+  stringConstants :: StringConstants
 }
 
 data Store = Store { 
@@ -39,8 +41,10 @@ data Store = Store {
   curLoc :: Int
 }
 
-initEnv :: FunctionsRetTypes -> Env
-initEnv fRetTypes = Env { fRetTypes = fRetTypes, variables = M.empty, linePrefix="" }
+initEnv :: FunctionsRetTypes -> (M.Map String String) -> Env
+initEnv fRetTypes strConsts = 
+  Env { fRetTypes = fRetTypes, variables = M.empty, 
+        linePrefix="", stringConstants = strConsts }
 initStore :: Store
 initStore = Store { auxBlockCounter = 0, curLoc = 0 }
 
@@ -96,3 +100,8 @@ getVarLoc x = do
 
 nextPrefix :: (Env -> Env)
 nextPrefix = \env -> env { linePrefix = linePrefix env ++ "  " }
+
+getStrConst :: String ->  Backend String
+getStrConst s = do
+  strConsts <- asks stringConstants
+  return $ fromJust $ M.lookup s strConsts

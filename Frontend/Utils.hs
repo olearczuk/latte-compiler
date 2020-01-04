@@ -22,6 +22,7 @@ type ArgToAddress = (M.Map Ident (Int, TType))
 
 type FuncWithData = (TopDef InstrPos, VarsCounter, ArgToAddress)
 type FunctionsRetTypes = M.Map Ident TType
+type StringConstants = M.Map String String
 
 builtInFunctions :: [Ident]
 builtInFunctions = [Ident "printInt", Ident "printString", Ident "error",
@@ -56,11 +57,12 @@ initEnv = Env { variables = M.empty, functions = M.empty,
 
 data Store = Store {
   localVarsCounter :: Integer,
-  argToAddress :: ArgToAddress
+  argToAddress :: ArgToAddress,
+  stringConstants :: StringConstants
 }
 
 initStore :: Store
-initStore = Store { localVarsCounter = 0, argToAddress = M.empty }
+initStore = Store { localVarsCounter = 0, argToAddress = M.empty, stringConstants = M.empty }
 
 type Frontend a = (StateT Store (ReaderT Env (Except String))) a
 
@@ -131,3 +133,12 @@ checkIfFunctionDefined f pos instruction = do
       Just _ ->
         throwError $ (extractLineColumn instruction pos) ++ " function is already defined"
       Nothing -> return ()
+
+addStrConstant :: String -> Frontend ()
+addStrConstant s = do
+  strConst <- gets stringConstants
+  case M.lookup s strConst of
+    Nothing -> do
+      let strConst' = M.insert s ("LC" ++ (show $ M.size strConst)) strConst
+      modify $ \store -> store {stringConstants = strConst'}
+    Just _ -> return ()

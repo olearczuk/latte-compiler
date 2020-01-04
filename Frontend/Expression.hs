@@ -4,6 +4,7 @@ import Frontend.Utils
 import Grammar.AbsLatte
 import Grammar.PrintLatte
 import Control.Monad.Except
+import Control.Monad.State
 
 getExprType :: Expression -> Frontend TType
 getExprType expr = case expr of
@@ -35,7 +36,7 @@ getExprType expr = case expr of
     checkArgs exprs fArgs expr
     return fType
 
-  EString _ _ -> return sString
+  EString _ s -> addStrConstant s >> return sString
 
   Neg pos negexpr -> do
     exprType <- getExprType negexpr

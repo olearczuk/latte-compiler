@@ -11,11 +11,11 @@ import Control.Monad.Writer
 import qualified Data.Map as M
 import qualified Data.DList as DL
 
-genProgram :: ([FuncWithData], FunctionsRetTypes) -> String
-genProgram (funcWithData, fRetTypes) =
+genProgram :: ([FuncWithData], FunctionsRetTypes, StringConstants) -> String
+genProgram (funcWithData, fRetTypes, strConsts) =
   let res = execWriter (runReaderT (evalStateT (genDecl funcWithData) initStore) 
-                        $ initEnv fRetTypes) in
- ".text\n.global main\n\n" ++ combineLines res
+                        $ initEnv fRetTypes strConsts) in
+ combineLines res
 
 combineLines :: DL.DList String -> String
 combineLines dlist = DL.toList $ 

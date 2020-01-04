@@ -68,5 +68,7 @@ generateExecutable path = do
   let execFile = take (length path - 2) path
   let oFile = execFile ++ ".o"
   readProcess "gcc" ["-m32", "-c", path, "-o", oFile] ""
+  readProcess "gcc" ["-m32", "-c", "lib/runtime.c", "-o", "lib/runtime.o"] ""
   readProcess "gcc" ["-m32", "-o", execFile, oFile, "lib/runtime.o"] ""
+  readProcess "rm" ["-f", oFile] ""
   return ()

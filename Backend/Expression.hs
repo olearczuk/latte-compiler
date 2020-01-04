@@ -26,10 +26,13 @@ genExpr expr = case expr of
   EApp _ f exprs -> do
     pushArguments exprs
     addLine $ "call " ++ (printTree f)
-    addLine $ "subl $" ++ (show (4 * (length exprs))) ++ ", %esp"
+    addLine $ "addl $" ++ (show (4 * (length exprs))) ++ ", %esp"
     getFunctionType f
 
-  -- EString _ s -> TODO
+  EString _ s -> do
+    curConst <- getStrConst s
+    addLine $ "mov $" ++ curConst ++ ", %eax"
+    return sString
 
   Neg _ negexpr -> do
     exprType <- genExpr negexpr
@@ -60,19 +63,27 @@ genExpr expr = case expr of
     case op of
       Plus _ -> case exprType of
         Int _ -> addLine "addl %ecx, %eax"
-        -- String _ -> TODO
+        Str _ -> 
+          addLines ["pushl %ecx", "pushl %eax", "call addStrings", 
+                    "addl $8, %esp"]
       Minus _ -> addLine "subl %ecx, %eax"
     return exprType
 
-  -- TODO - comparing strings
   ERel _ expr1 rel expr2 -> do
     exprType <- genExpr expr2
     pushEax
     genExpr expr1
     popEcx
-    addLine "cmp %ecx, %eax"
+
     curBlock <- curBlockCounter
     let curRel = "_rel_" ++ curBlock
+
+    case exprType of
+      Int _ -> addLine "cmp %ecx, %eax"
+      Bool _ -> addLine "cmp %ecx, %eax"
+      Str _ -> do
+        addLines ["pushl %ecx", "pushl %eax", "call compareStrings"]
+        addLine "cmp $0, %eax"
     case rel of
       LTH _ -> addLine $ "jl " ++ curRel
       LE _ -> addLine $ "jle " ++ curRel
