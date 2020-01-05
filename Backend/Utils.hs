@@ -23,11 +23,9 @@ type StringConstants = M.Map String String
 iInt :: TType
 sString :: TType
 bBool :: TType
-vVoid :: TType
 iInt = Int Nothing
 sString = Str Nothing
 bBool = Bool Nothing
-vVoid = Void Nothing
 
 data Env = Env {
   fRetTypes :: FunctionsRetTypes,

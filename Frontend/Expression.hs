@@ -54,7 +54,6 @@ getExprType expr = case expr of
   EAdd pos expr1 (Plus _) expr2 -> 
     checkIfBothSatisfyType [iInt, sString] expr1 expr2 pos
 
-
   EAdd pos expr1 (Minus _) expr2 -> 
     checkIfBothSatisfyType [iInt] expr1 expr2 pos
 

@@ -76,7 +76,7 @@ genExpr expr = case expr of
     popEcx
 
     curBlock <- curBlockCounter
-    let curRel = "_rel_" ++ curBlock
+    let curRel = "__rel_" ++ curBlock
 
     case exprType of
       Int _ -> addLine "cmp %ecx, %eax"
@@ -98,7 +98,7 @@ genExpr expr = case expr of
   EAnd _ expr1 expr2 -> do
     exprType <- genExpr expr1
     curBlock <- curBlockCounter
-    let curAnd = "_and_" ++ curBlock
+    let curAnd = "__and_" ++ curBlock
     addLines ["cmp $0, %eax", "je " ++ curAnd]
     pushEax
     genExpr expr2
@@ -109,7 +109,7 @@ genExpr expr = case expr of
   EOr _ expr1 expr2 -> do
     exprType <- genExpr expr1
     curBlock <- curBlockCounter
-    let curOr = "_or_" ++ curBlock
+    let curOr = "__or_" ++ curBlock
     addLines ["cmp $1, %eax", "je " ++ curOr]
     pushEax
     genExpr expr2

@@ -16,6 +16,7 @@ void error() {
 }
 
 char* readString() {
+    scanf("\n");
     char *result = (char*)malloc(sizeof(char));
     size_t length;
     getline(&result, &length, stdin);
@@ -25,12 +26,9 @@ char* readString() {
 }
 
 int readInt() {
+    scanf("\n");
     int n;
     scanf("%d", &n);
-    // getchar() is a hack for situation
-    // readInt(); readString();
-    // without it readString() would read '\n' only
-    getchar();
     return n;
 }
 

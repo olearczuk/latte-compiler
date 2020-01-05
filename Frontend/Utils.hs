@@ -19,6 +19,7 @@ type FunctionData = (TType, [Arg InstrPos])
 type Expression = Expr InstrPos
 type Statement = Stmt InstrPos
 type ArgToAddress = (M.Map Ident (Int, TType))
+type AreReturnsSatisified = Bool
 
 type FuncWithData = (TopDef InstrPos, VarsCounter, ArgToAddress)
 type FunctionsRetTypes = M.Map Ident TType
@@ -26,7 +27,7 @@ type StringConstants = M.Map String String
 
 builtInFunctions :: [Ident]
 builtInFunctions = [Ident "printInt", Ident "printString", Ident "error",
-                    Ident "readInt", Ident "readString"]
+                    Ident "readInt", Ident "readString", Ident "compareStrings", Ident "emptyString"]
 
 builtInFunctionsTypes :: FunctionsRetTypes
 builtInFunctionsTypes = M.fromList [(Ident "printInt", vVoid), (Ident "printString", vVoid), (Ident "error", vVoid),
@@ -44,25 +45,29 @@ vVoid = Void Nothing
 comparableTypes :: ExpectedTypes
 comparableTypes = [iInt, sString, bBool]
 
+varTypes :: ExpectedTypes
+varTypes = [iInt, sString, bBool]
+
 data Env = Env {
   variables :: M.Map Ident (TType, BlockNumber),
   functions :: M.Map Ident FunctionData,
   actFunctionType :: TType,
-  blockNumber :: Integer
+  blockNumber :: Integer,
+  argToAddress :: ArgToAddress
 }
 
 initEnv :: Env
 initEnv = Env { variables = M.empty, functions = M.empty, 
-                blockNumber = 0, actFunctionType = iInt }
+                blockNumber = 0, actFunctionType = iInt,
+                argToAddress = M.empty }
 
 data Store = Store {
   localVarsCounter :: Integer,
-  argToAddress :: ArgToAddress,
   stringConstants :: StringConstants
 }
 
 initStore :: Store
-initStore = Store { localVarsCounter = 0, argToAddress = M.empty, stringConstants = M.empty }
+initStore = Store { localVarsCounter = 0, stringConstants = M.empty }
 
 type Frontend a = (StateT Store (ReaderT Env (Except String))) a
 
@@ -142,3 +147,11 @@ addStrConstant s = do
       let strConst' = M.insert s ("LC" ++ (show $ M.size strConst)) strConst
       modify $ \store -> store {stringConstants = strConst'}
     Just _ -> return ()
+
+getPosFromType :: TType -> Maybe (Int, Int)
+getPosFromType tType = 
+  case tType of
+    Int pos -> pos
+    Str pos -> pos
+    Bool pos -> pos
+    Void pos -> pos

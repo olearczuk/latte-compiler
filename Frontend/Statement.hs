@@ -7,18 +7,16 @@ import Frontend.Expression
 import Control.Monad.Reader
 import Control.Monad.State
 
-checkStmts :: [Statement] -> Frontend ((Env -> Env), Bool)
+checkStmts :: [Statement] -> Frontend ((Env -> Env), AreReturnsSatisified)
 checkStmts stmts = checkStmtsAux stmts False
   where
-    checkStmtsAux :: [Statement] -> Bool -> Frontend ((Env -> Env), Bool)
+    checkStmtsAux :: [Statement] -> Bool -> Frontend ((Env -> Env), AreReturnsSatisified)
     checkStmtsAux [] acc = return (id, acc)
-
     checkStmtsAux (stmt:stmtT) acc = do
       (stmtResult, wasReturn) <- checkStmt stmt
       local stmtResult $ checkStmtsAux stmtT (acc || wasReturn)
 
-
-checkStmt :: Statement -> Frontend ((Env -> Env), Bool)
+checkStmt :: Statement -> Frontend ((Env -> Env), AreReturnsSatisified)
 checkStmt stmt = case stmt of
   Empty _ -> return (id, False)
 
@@ -35,7 +33,6 @@ checkStmt stmt = case stmt of
         f <- execSingleVarDecl itemsH varType
         local f $ checkStmt (Decl pos varType itemsT)
 
-
   Ass pos x expr -> do
     t <- lookupVariableType x pos
     exprType <- getExprType expr
@@ -45,12 +42,12 @@ checkStmt stmt = case stmt of
 
   Incr pos x -> do
     t <- lookupVariableType x pos
-    checkType t [iInt] pos stmt
+    checkType t [iInt] pos x
     return (id, False)
 
   Decr pos x -> do
     t <- lookupVariableType x pos
-    checkType t [iInt] pos stmt
+    checkType t [iInt] pos x
     return (id, False)
 
   Ret pos expr -> do
@@ -69,9 +66,9 @@ checkStmt stmt = case stmt of
     exprType <- getExprType expr
     let exprPos = getExprPos expr
     checkType exprType [bBool] exprPos expr
-    checkStmt stmt
+    (_, wasReturn) <- checkStmt stmt
     case expr of
-      ELitTrue _ -> return (id, True)
+      ELitTrue _ -> return (id, wasReturn)
       _ -> return (id, False)
 
   CondElse pos expr stmt1 stmt2 -> local nextBlockNumber $ do
@@ -91,7 +88,6 @@ checkStmt stmt = case stmt of
     let exprPos = getExprPos expr
     checkType exprType [bBool] exprPos expr
     (_, wasReturn) <- checkStmt stmt
-    -- TODO change
     case expr of
       ELitTrue _ -> return (id, wasReturn)
       _ -> return (id, False)
@@ -102,6 +98,7 @@ checkStmt stmt = case stmt of
 
 execSingleVarDecl :: IItem -> TType -> Frontend (Env -> Env)
 execSingleVarDecl item varType =
+  checkType varType varTypes (getPosFromType varType) varType >>
   case item of
     NoInit pos x -> do
       checkIfVariableDefined x pos item
