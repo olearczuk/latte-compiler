@@ -3,10 +3,11 @@
 *.hi
 *.o
 *.dvi
-Frontend/*.hi
-Frontend/*.o
-Grammar/*.hi
-Grammar/*.o
+src/Backend/*.hi
+src/Backend/*.o
+src/Frontend/*.hi
+src/Frontend/*.o
+src/Grammar/*.hi
+src/Grammar/*.o
 tests
 latc_x86
-frontend_test.py
