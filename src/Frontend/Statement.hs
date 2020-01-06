@@ -87,9 +87,9 @@ checkStmt stmt = case stmt of
     exprType <- getExprType expr
     let exprPos = getExprPos expr
     checkType exprType [bBool] exprPos expr
-    (_, wasReturn) <- checkStmt stmt
+    checkStmt stmt
     case expr of
-      ELitTrue _ -> return (id, wasReturn)
+      ELitTrue _ -> return (id, True)
       _ -> return (id, False)
 
   SExp _ expr ->
