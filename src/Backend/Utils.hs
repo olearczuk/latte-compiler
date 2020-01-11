@@ -19,6 +19,7 @@ type FunctionsRetTypes = M.Map Ident TType
 type Expression = Expr InstrPos
 type Statement = Stmt InstrPos
 type StringConstants = M.Map String String
+type ClassesInfo = M.Map Ident ArgToAddress
 
 iInt :: TType
 sString :: TType
@@ -30,6 +31,7 @@ bBool = Bool Nothing
 data Env = Env {
   fRetTypes :: FunctionsRetTypes,
   variables :: ArgToAddress,
+  classes :: ClassesInfo,
   linePrefix :: String,
   stringConstants :: StringConstants
 }
@@ -39,10 +41,10 @@ data Store = Store {
   curLoc :: Int
 }
 
-initEnv :: FunctionsRetTypes -> (M.Map String String) -> Env
-initEnv fRetTypes strConsts = 
+initEnv :: FunctionsRetTypes -> (M.Map String String) -> ClassesInfo -> Env
+initEnv fRetTypes strConsts classes_ = 
   Env { fRetTypes = fRetTypes, variables = M.empty, 
-        linePrefix="", stringConstants = strConsts }
+        linePrefix="", stringConstants = strConsts, classes = classes_ }
 initStore :: Store
 initStore = Store { auxBlockCounter = 0, curLoc = 0 }
 
@@ -103,3 +105,15 @@ getStrConst :: String ->  Backend String
 getStrConst s = do
   strConsts <- asks stringConstants
   return $ fromJust $ M.lookup s strConsts
+
+setDefaultValue :: TType -> Backend String
+setDefaultValue t =
+  case t of
+    Str _ -> addLine "call emptyString" >> return "movl %eax, "
+    _ -> return "movl $0, "
+
+getFieldLoc :: Ident -> Ident -> Backend (VarPos, TType)
+getFieldLoc classId x = do
+  classes_ <- asks classes
+  let toAddress = fromJust $ M.lookup classId classes_
+  return $ fromJust $ M.lookup x toAddress

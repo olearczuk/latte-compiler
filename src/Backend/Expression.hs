@@ -6,9 +6,15 @@ import Grammar.PrintLatte
 
 genExpr :: Expression -> Backend TType
 genExpr expr = case expr of
-  EVar _ x -> do
+  ELValue _ (Var _ x) -> do
     (varPos, varType) <- getVarInfo x
     addLine $ "movl " ++ (show varPos) ++ "(%ebp), %eax"
+    return varType
+
+  ELValue _ (ObjField _ lval x) -> do
+    Class _ classId <- genExpr $ ELValue Nothing lval
+    (varPos, varType) <- getFieldLoc classId x
+    addLine $ "movl " ++ (show varPos) ++ "(%eax), %eax"
     return varType
 
   ELitInt _ n -> do
@@ -31,8 +37,18 @@ genExpr expr = case expr of
 
   EString _ s -> do
     curConst <- getStrConst s
-    addLine $ "mov $" ++ curConst ++ ", %eax"
+    addLine $ "movl $" ++ curConst ++ ", %eax"
     return sString
+
+  ENewObj _ (Class _ id) -> do
+    addLine $ "call __constructor_" ++ (printTree id)
+    return (Class Nothing id)
+
+  ENull _ t -> do
+    addLine "movl $0, %eax"
+    return t
+
+  -- EMethod a (LValue a) Ident [Expr a]
 
   Neg _ negexpr -> do
     exprType <- genExpr negexpr
@@ -79,11 +95,10 @@ genExpr expr = case expr of
     let curRel = "__rel_" ++ curBlock
 
     case exprType of
-      Int _ -> addLine "cmp %ecx, %eax"
-      Bool _ -> addLine "cmp %ecx, %eax"
       Str _ -> do
         addLines ["pushl %ecx", "pushl %eax", "call compareStrings"]
         addLine "cmp $0, %eax"
+      _ -> addLine "cmp %ecx, %eax"
     case rel of
       LTH _ -> addLine $ "jl " ++ curRel
       LE _ -> addLine $ "jle " ++ curRel

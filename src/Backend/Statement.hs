@@ -25,18 +25,27 @@ genStmt stmt = case stmt of
     f <- genSingleVarDecl itemsH varType
     local f $ (genStmt $ Decl pos varType itemsT)
 
-  Ass _ x expr -> do
-    genExpr expr
+  Ass _ (Var _ x) expr -> do
     loc <- getVarLoc x
+    genExpr expr
     addLine $ "movl %eax, " ++ loc
     return id
 
-  Incr _ x -> do
+  Ass _ (ObjField _ lval x) expr -> do
+    genExpr expr
+    pushEax
+    (Class _ classId) <- genExpr $ ELValue Nothing lval
+    popEcx
+    (varPos, _) <- getFieldLoc classId x
+    addLine $ "movl %ecx, " ++ (show varPos) ++ "(%eax)"
+    return id
+
+  Incr _ (Var _ x) -> do
     loc <- getVarLoc x
     addLine $ "addl $1, " ++ loc
     return id
 
-  Decr _ x -> do
+  Decr _ (Var _ x) -> do
     loc <- getVarLoc x
     addLine $ "subl $1, " ++ loc
     return id
@@ -86,9 +95,8 @@ genStmt stmt = case stmt of
       let loc' = (show loc) ++ "(%ebp)"
       case item of
         NoInit _ x -> do
-          case varType of
-            Str _ -> addLines ["call emptyString", "movl %eax, " ++ loc']
-            _ -> addLine ("movl $0, " ++ loc')
+          auxLine <- setDefaultValue varType
+          addLine $ auxLine ++ loc'
           saveVarOnStack x varType
         Init _ x expr -> do
           genExpr expr

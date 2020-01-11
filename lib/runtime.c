@@ -48,3 +48,7 @@ char* emptyString() {
     strcpy (result, "");
     return result;
 }
+
+void* allocateMemory(int bytes) {
+    return (void*)malloc(bytes);
+}

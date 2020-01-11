@@ -8,7 +8,12 @@ import Control.Monad.State
 
 getExprType :: Expression -> Frontend TType
 getExprType expr = case expr of
-  EVar pos x -> lookupVariableType x pos
+  ELValue _ (Var pos x) -> lookupVariableType x pos
+
+  ELValue _ (ObjField pos lval ident) -> do
+    exprType <- getExprType $ ELValue Nothing lval
+    checkType exprType [cClass] pos lval
+    getClassFieldType exprType (ObjField pos lval ident)
 
   ELitInt _ _ -> return iInt
 
@@ -37,6 +42,18 @@ getExprType expr = case expr of
     return fType
 
   EString _ s -> addStrConstant s >> return sString
+
+  ENewObj _ (Class pos ident) ->
+    getClassInfo ident pos >> return (Class pos ident)
+  ENewObj pos t ->
+    throwError $ (extractLineColumn t pos) ++ " not a class type"
+
+  ENull _ (Class pos ident) ->
+    getClassInfo ident pos >> return (Class pos ident)
+  ENull pos t ->
+    throwError $ (extractLineColumn t pos) ++ " not a class type"
+
+  -- EMethod a (LValue a) Ident [Expr a]
 
   Neg pos negexpr -> do
     exprType <- getExprType negexpr
@@ -101,11 +118,14 @@ getExprType expr = case expr of
       expr2Type <- getExprType expr2
       let expr2Pos = getExprPos expr2
       checkType expr2Type [expr1Type] expr2Pos expr2
+
+      checkIfExactSameType expr2Type expr1Type expr2Pos expr2
+
       return expr1Type
 
 getExprPos :: Expression -> InstrPos
 getExprPos expr = case expr of
-  EVar pos _ -> pos
+  ELValue _ lval -> getLValPos lval
   ELitInt pos _ -> pos
   ELitTrue pos -> pos
   ELitFalse pos -> pos
@@ -118,3 +138,7 @@ getExprPos expr = case expr of
   ERel pos _ _ _ -> pos
   EAnd pos _ _ -> pos
   EOr pos _ _ -> pos
+
+getLValPos :: LLValue -> InstrPos
+getLValPos (Var pos _) = pos
+getLValPos (ObjField pos _ _) = pos

@@ -18,16 +18,19 @@ type VarsCounter = Integer
 type FunctionData = (TType, [Arg InstrPos])
 type Expression = Expr InstrPos
 type Statement = Stmt InstrPos
+type LLValue = LValue InstrPos
+type CClMember = ClMember InstrPos
 type ArgToAddress = (M.Map Ident (Int, TType))
 type AreReturnsSatisified = Bool
 
 type FuncWithData = (TopDef InstrPos, VarsCounter, ArgToAddress)
 type FunctionsRetTypes = M.Map Ident TType
 type StringConstants = M.Map String String
+type ClassesInfo = M.Map Ident ArgToAddress
 
 builtInFunctions :: [Ident]
 builtInFunctions = [Ident "printInt", Ident "printString", Ident "error",
-                    Ident "readInt", Ident "readString", Ident "compareStrings", Ident "emptyString"]
+                    Ident "readInt", Ident "readString", Ident "compareStrings", Ident "emptyString", Ident "allocateMemory"]
 
 builtInFunctionsTypes :: FunctionsRetTypes
 builtInFunctionsTypes = M.fromList [(Ident "printInt", vVoid), (Ident "printString", vVoid), (Ident "error", vVoid),
@@ -37,29 +40,34 @@ iInt :: TType
 sString :: TType
 bBool :: TType
 vVoid :: TType
+cClass :: TType
 iInt = Int Nothing
 sString = Str Nothing
 bBool = Bool Nothing
-vVoid = Void Nothing 
+vVoid = Void Nothing
+cClass = Class Nothing (Ident "")
 
 comparableTypes :: ExpectedTypes
-comparableTypes = [iInt, sString, bBool]
+comparableTypes = [iInt, sString, bBool, cClass]
 
 varTypes :: ExpectedTypes
-varTypes = [iInt, sString, bBool]
+varTypes = [iInt, sString, bBool, cClass]
 
 data Env = Env {
   variables :: M.Map Ident (TType, BlockNumber),
   functions :: M.Map Ident FunctionData,
+  classes :: ClassesInfo,
   actFunctionType :: TType,
   blockNumber :: Integer,
-  argToAddress :: ArgToAddress
+  argToAddress :: ArgToAddress,
+  actClass :: Ident
 }
 
 initEnv :: Env
-initEnv = Env { variables = M.empty, functions = M.empty, 
-                blockNumber = 0, actFunctionType = iInt,
-                argToAddress = M.empty }
+initEnv = Env { variables = M.empty, functions = M.empty,
+                classes = M.empty, blockNumber = 0, 
+                actFunctionType = iInt, argToAddress = M.empty,
+                actClass = Ident "" }
 
 data Store = Store {
   localVarsCounter :: Integer,
@@ -95,11 +103,19 @@ lookupFunctionData f pos = do
 nextBlockNumber :: Env -> Env
 nextBlockNumber env = env { blockNumber = 1 + blockNumber env }
 
+checkIfExactSameType :: (Print a) =>  TType -> TType -> InstrPos -> a -> Frontend ()
+checkIfExactSameType (Class _ id1) (Class _ id2) pos instr =
+  if id1 == id2
+    then return ()
+    else throwError $ (extractLineColumn instr pos) ++ " wrong type"
+checkIfExactSameType t2 t1 pos instr = checkType t2 [t1] pos instr
+
 isSameType :: TType -> TType -> Bool
 isSameType (Int _) (Int _) = True
 isSameType (Void _) (Void _) = True
 isSameType (Str _) (Str _) = True
 isSameType (Bool _) (Bool _) = True
+isSameType (Class _ _) (Class _ _) = True
 isSameType _ _ = False
 
 checkType :: (Print a) => TType -> ExpectedTypes -> InstrPos -> a -> Frontend ()
@@ -155,3 +171,46 @@ getPosFromType tType =
     Str pos -> pos
     Bool pos -> pos
     Void pos -> pos
+
+getClassFieldType :: TType -> LLValue -> Frontend TType
+getClassFieldType (Class _ classId) (ObjField pos lval x) = do
+  classInfo <- getClassInfo classId pos
+  case M.lookup x classInfo of
+    Nothing -> throwError $ (extractLineColumn (Class pos classId) pos) ++
+      " class has no field " ++ (printTree x)
+    Just (_, xType) -> return xType
+
+getClassInfo :: Ident -> InstrPos -> Frontend ArgToAddress
+getClassInfo id pos = do
+  cl <- asks classes
+  case M.lookup id cl of
+    Nothing -> throwError $ (extractLineColumn id pos) ++ " no such class"
+    Just classInfo -> return classInfo
+
+checkIfClassDefined :: Ident -> InstrPos -> Frontend ()
+checkIfClassDefined id pos = do
+  cl <- asks classes
+  case M.lookup id cl of
+    Nothing -> return ()
+    Just classInfo -> throwError $ (extractLineColumn id pos) ++ " class is already defined"
+
+addNewFieldToClass :: CClMember -> Frontend (Env -> Env)
+addNewFieldToClass member = do
+  let (ClField pos xType x) = member
+  actClass_ <- asks actClass
+  classes_ <- asks classes
+  let toAddress = fromJust $ M.lookup actClass_ classes_
+  let xLoc = 4 * M.size toAddress
+  case M.lookup x toAddress of
+    Nothing -> return $ \env -> 
+      env { classes = M.insert actClass_ (M.insert x (xLoc, xType) toAddress) classes_}
+    Just _ -> throwError $ (extractLineColumn member pos) ++ " is already defined"
+-- checkIfClass :: TType -> Frontend ()
+-- checkIfClass t =
+--   case t of
+--     Class pos ident -> do
+--       cl <- asks classes
+--       case M.lookup ident cl of
+--         Nothing -> throwError $ (extractLineColumn t pos) ++ " no such class"
+--         Just _ -> return ()
+--     _ -> throwError $ (extractLineColumn t (getPosFromType t)) ++ " no such class"

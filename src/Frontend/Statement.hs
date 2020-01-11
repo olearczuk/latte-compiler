@@ -33,21 +33,21 @@ checkStmt stmt = case stmt of
         f <- execSingleVarDecl itemsH varType
         local f $ checkStmt (Decl pos varType itemsT)
 
-  Ass pos x expr -> do
-    t <- lookupVariableType x pos
+  Ass pos lval expr -> do
+    t <- getExprType $ ELValue Nothing lval
     exprType <- getExprType expr
     let exprPos = getExprPos expr
     checkType exprType [t] exprPos expr
     return (id, False)
 
-  Incr pos x -> do
-    t <- lookupVariableType x pos
-    checkType t [iInt] pos x
+  Incr pos lval -> do
+    t <- getExprType $ ELValue Nothing lval
+    checkType t [iInt] pos lval
     return (id, False)
 
-  Decr pos x -> do
-    t <- lookupVariableType x pos
-    checkType t [iInt] pos x
+  Decr pos lval -> do
+    t <- getExprType $ ELValue Nothing lval
+    checkType t [iInt] pos lval
     return (id, False)
 
   Ret pos expr -> do

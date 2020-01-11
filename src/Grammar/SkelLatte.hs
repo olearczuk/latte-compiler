@@ -18,9 +18,18 @@ transProgram x = case x of
 transTopDef :: Show a => TopDef a -> Result
 transTopDef x = case x of
   FnDef _ type_ ident args block -> failure x
+  ClDef _ ident extends clmembers -> failure x
 transArg :: Show a => Arg a -> Result
 transArg x = case x of
   Arg _ type_ ident -> failure x
+transExtends :: Show a => Extends a -> Result
+transExtends x = case x of
+  ClExtend _ ident -> failure x
+  ClNoExt _ -> failure x
+transClMember :: Show a => ClMember a -> Result
+transClMember x = case x of
+  ClField _ type_ ident -> failure x
+  ClMethod _ type_ ident args block -> failure x
 transBlock :: Show a => Block a -> Result
 transBlock x = case x of
   Block _ stmts -> failure x
@@ -29,9 +38,9 @@ transStmt x = case x of
   Empty _ -> failure x
   BStmt _ block -> failure x
   Decl _ type_ items -> failure x
-  Ass _ ident expr -> failure x
-  Incr _ ident -> failure x
-  Decr _ ident -> failure x
+  Ass _ lvalue expr -> failure x
+  Incr _ lvalue -> failure x
+  Decr _ lvalue -> failure x
   Ret _ expr -> failure x
   VRet _ -> failure x
   Cond _ expr stmt -> failure x
@@ -48,15 +57,18 @@ transType x = case x of
   Str _ -> failure x
   Bool _ -> failure x
   Void _ -> failure x
-  Fun _ type_ types -> failure x
+  Class _ ident -> failure x
 transExpr :: Show a => Expr a -> Result
 transExpr x = case x of
-  EVar _ ident -> failure x
+  ELValue _ lvalue -> failure x
   ELitInt _ integer -> failure x
   ELitTrue _ -> failure x
   ELitFalse _ -> failure x
   EApp _ ident exprs -> failure x
   EString _ string -> failure x
+  ENewObj _ type_ -> failure x
+  ENull _ type_ -> failure x
+  EMethod _ lvalue ident exprs -> failure x
   Neg _ expr -> failure x
   Not _ expr -> failure x
   EMul _ expr1 mulop expr2 -> failure x
@@ -64,6 +76,10 @@ transExpr x = case x of
   ERel _ expr1 relop expr2 -> failure x
   EAnd _ expr1 expr2 -> failure x
   EOr _ expr1 expr2 -> failure x
+transLValue :: Show a => LValue a -> Result
+transLValue x = case x of
+  ObjField _ lvalue ident -> failure x
+  Var _ ident -> failure x
 transAddOp :: Show a => AddOp a -> Result
 transAddOp x = case x of
   Plus _ -> failure x

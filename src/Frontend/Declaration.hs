@@ -8,10 +8,10 @@ import Control.Monad.State
 import Control.Monad.Except
 import Grammar.AbsLatte
 
-checkDecls :: [TopDef InstrPos] -> Frontend ([FuncWithData], FunctionsRetTypes, StringConstants)
+checkDecls :: [TopDef InstrPos] -> Frontend ([FuncWithData], FunctionsRetTypes, StringConstants, ClassesInfo)
 checkDecls topDefs = do
   f <- execDecls topDefs
-  local f $ checkFunctionsBody topDefs
+  local f $ checkTopDefBody topDefs
   where 
     execDecls :: [TopDef InstrPos] -> Frontend (Env -> Env)
     execDecls [] = do
@@ -24,11 +24,23 @@ checkDecls topDefs = do
       return declResult'
 
     execDecl :: TopDef InstrPos -> Frontend (Env -> Env)
-    execDecl fnDef = do
-      let (FnDef pos fType f args _) = fnDef
+    execDecl (FnDef pos fType f args _) = do
       checkIfFunctionDefined f pos f
       return $ \env -> env { 
         functions = M.insert f (fType, args) $ functions env }
+    execDecl (ClDef pos classId extends members) = do
+      checkIfClassDefined classId pos
+      local (\env -> env { actClass = classId, 
+          classes = M.insert classId M.empty $ classes env}) $ prepClassMembers members
+
+    prepClassMembers :: [ClMember InstrPos] -> Frontend (Env -> Env)
+    prepClassMembers [] = do
+      actEnv <- ask
+      return $ \env -> actEnv
+    prepClassMembers ((ClField pos t x):membersT) = do
+      f <- addNewFieldToClass (ClField pos t x)
+      local f $ prepClassMembers membersT
+    -- TODO prepClassMembers ((CLMethod ...):membersT)
 
     initArguments :: [Arg InstrPos] -> Frontend ((Env -> Env), ArgToAddress)
     initArguments [] = do
@@ -43,11 +55,12 @@ checkDecls topDefs = do
         argToAddress = M.insert argId (8 + mapSize * 4, argType) toAddress }
       local (f . newArgFunction) $ initArguments argsT
 
-    checkFunctionsBody :: [TopDef InstrPos] -> Frontend ([FuncWithData], FunctionsRetTypes, StringConstants)
-    checkFunctionsBody [] = do
+    checkTopDefBody :: [TopDef InstrPos] -> Frontend ([FuncWithData], FunctionsRetTypes, StringConstants, ClassesInfo)
+    checkTopDefBody [] = do
+      classes_ <- asks classes
       stringConsts <- gets stringConstants
-      return ([], builtInFunctionsTypes, stringConsts)
-    checkFunctionsBody (FnDef pos fType f args stmt:fnDefT) = do
+      return ([], builtInFunctionsTypes, stringConsts, classes_)
+    checkTopDefBody (FnDef pos fType f args stmt:fnDefT) = do
       (fType, fArgs) <- lookupFunctionData f pos
       modify $ \store -> store { localVarsCounter = 0 }
       (fArgsFunc, toAddress) <- initArguments fArgs
@@ -58,6 +71,7 @@ checkDecls topDefs = do
           throwError $ extractLineColumn f pos ++ " missing returns"
         else do
           counter <- gets localVarsCounter
-          (funcWithData, funcTypes, stringConsts) <- checkFunctionsBody fnDefT
+          (funcWithData, funcTypes, stringConsts, classes_) <- checkTopDefBody fnDefT
           return ((FnDef pos fType f args stmt, counter, toAddress):funcWithData, 
-            M.insert f fType funcTypes, stringConsts)
+            M.insert f fType funcTypes, stringConsts, classes_)
+    checkTopDefBody (_:fnDefT) = checkTopDefBody fnDefT

@@ -14,6 +14,7 @@ genDecl fData = do
   strConsts <- asks stringConstants
   genConsts $ M.toList strConsts
   addLine ".global main\n"
+  genClasses
   genDeclAux fData
 
 genConsts :: [(String, String)] -> Backend ()
@@ -36,3 +37,23 @@ genDeclAux ((FnDef _ fType fIdent _ (Block _ stmts), varsCounter, argToAddress):
               "subl $" ++ (show $ 4 *varsCounter) ++ ", %esp"]
     genStmts stmts'
   genDeclAux decls
+
+genClasses :: Backend ()
+genClasses = do
+  classes_ <- asks classes
+  genClassesAux $ M.toList classes_
+  where 
+    genClassesAux :: [(Ident, ArgToAddress)] -> Backend ()
+    genClassesAux [] = return ()
+    genClassesAux ((cIdent, argToAddress):tail) = do
+      addLine $ "__constructor_" ++ (printTree cIdent) ++ ":"
+      local nextPrefix $ do
+        addLine $ "pushl $" ++ (show $ 4 * M.size argToAddress)
+        addLines  ["call allocateMemory",  "addl $4, %esp"]
+        mapM_ setAttr $ M.toList argToAddress
+        addLine "ret"
+
+    setAttr :: (Ident, (VarPos, TType)) -> Backend ()
+    setAttr (_, (loc, xType)) = do
+      str <- setDefaultValue xType
+      addLine $ str ++ (show loc) ++ "(%eax)"

@@ -19,33 +19,38 @@ import ErrM
   '&&' { PT _ (TS _ 4) }
   '(' { PT _ (TS _ 5) }
   ')' { PT _ (TS _ 6) }
-  '*' { PT _ (TS _ 7) }
-  '+' { PT _ (TS _ 8) }
-  '++' { PT _ (TS _ 9) }
-  ',' { PT _ (TS _ 10) }
-  '-' { PT _ (TS _ 11) }
-  '--' { PT _ (TS _ 12) }
-  '/' { PT _ (TS _ 13) }
-  ';' { PT _ (TS _ 14) }
-  '<' { PT _ (TS _ 15) }
-  '<=' { PT _ (TS _ 16) }
-  '=' { PT _ (TS _ 17) }
-  '==' { PT _ (TS _ 18) }
-  '>' { PT _ (TS _ 19) }
-  '>=' { PT _ (TS _ 20) }
-  'boolean' { PT _ (TS _ 21) }
-  'else' { PT _ (TS _ 22) }
-  'false' { PT _ (TS _ 23) }
-  'if' { PT _ (TS _ 24) }
-  'int' { PT _ (TS _ 25) }
-  'return' { PT _ (TS _ 26) }
-  'string' { PT _ (TS _ 27) }
-  'true' { PT _ (TS _ 28) }
-  'void' { PT _ (TS _ 29) }
-  'while' { PT _ (TS _ 30) }
-  '{' { PT _ (TS _ 31) }
-  '||' { PT _ (TS _ 32) }
-  '}' { PT _ (TS _ 33) }
+  ')null' { PT _ (TS _ 7) }
+  '*' { PT _ (TS _ 8) }
+  '+' { PT _ (TS _ 9) }
+  '++' { PT _ (TS _ 10) }
+  ',' { PT _ (TS _ 11) }
+  '-' { PT _ (TS _ 12) }
+  '--' { PT _ (TS _ 13) }
+  '.' { PT _ (TS _ 14) }
+  '/' { PT _ (TS _ 15) }
+  ';' { PT _ (TS _ 16) }
+  '<' { PT _ (TS _ 17) }
+  '<=' { PT _ (TS _ 18) }
+  '=' { PT _ (TS _ 19) }
+  '==' { PT _ (TS _ 20) }
+  '>' { PT _ (TS _ 21) }
+  '>=' { PT _ (TS _ 22) }
+  'boolean' { PT _ (TS _ 23) }
+  'class' { PT _ (TS _ 24) }
+  'else' { PT _ (TS _ 25) }
+  'extends' { PT _ (TS _ 26) }
+  'false' { PT _ (TS _ 27) }
+  'if' { PT _ (TS _ 28) }
+  'int' { PT _ (TS _ 29) }
+  'new' { PT _ (TS _ 30) }
+  'return' { PT _ (TS _ 31) }
+  'string' { PT _ (TS _ 32) }
+  'true' { PT _ (TS _ 33) }
+  'void' { PT _ (TS _ 34) }
+  'while' { PT _ (TS _ 35) }
+  '{' { PT _ (TS _ 36) }
+  '||' { PT _ (TS _ 37) }
+  '}' { PT _ (TS _ 38) }
 
   L_ident {PT _ (TV _)}
   L_integ {PT _ (TI _)}
@@ -87,6 +92,9 @@ TopDef :: {
 : Type Ident '(' ListArg ')' Block {
   (fst $1, AbsLatte.FnDef (fst $1)(snd $1)(snd $2)(snd $4)(snd $6)) 
 }
+| 'class' Ident Extends '{' ListClMember '}' {
+  (Just (tokenLineCol $1), AbsLatte.ClDef (Just (tokenLineCol $1)) (snd $2)(snd $3)(reverse (snd $5)))
+}
 
 ListTopDef :: {
   (Maybe (Int, Int), [TopDef (Maybe (Int, Int))]) 
@@ -118,6 +126,36 @@ ListArg :: {
   (fst $1, (:) (snd $1)(snd $3)) 
 }
 
+Extends :: {
+  (Maybe (Int, Int), Extends (Maybe (Int, Int)))
+}
+: 'extends' Ident {
+  (Just (tokenLineCol $1), AbsLatte.ClExtend (Just (tokenLineCol $1)) (snd $2)) 
+}
+| {
+  (Nothing, AbsLatte.ClNoExt Nothing)
+}
+
+ClMember :: {
+  (Maybe (Int, Int), ClMember (Maybe (Int, Int)))
+}
+: Type Ident ';' {
+  (fst $1, AbsLatte.ClField (fst $1)(snd $1)(snd $2)) 
+}
+| Type Ident '(' ListArg ')' Block {
+  (fst $1, AbsLatte.ClMethod (fst $1)(snd $1)(snd $2)(snd $4)(snd $6)) 
+}
+
+ListClMember :: {
+  (Maybe (Int, Int), [ClMember (Maybe (Int, Int))]) 
+}
+: {
+  (Nothing, [])
+}
+| ListClMember ClMember {
+  (fst $1, flip (:) (snd $1)(snd $2)) 
+}
+
 Block :: {
   (Maybe (Int, Int), Block (Maybe (Int, Int)))
 }
@@ -147,13 +185,13 @@ Stmt :: {
 | Type ListItem ';' {
   (fst $1, AbsLatte.Decl (fst $1)(snd $1)(snd $2)) 
 }
-| Ident '=' Expr ';' {
+| LValue '=' Expr ';' {
   (fst $1, AbsLatte.Ass (fst $1)(snd $1)(snd $3)) 
 }
-| Ident '++' ';' {
+| LValue '++' ';' {
   (fst $1, AbsLatte.Incr (fst $1)(snd $1)) 
 }
-| Ident '--' ';' {
+| LValue '--' ';' {
   (fst $1, AbsLatte.Decr (fst $1)(snd $1)) 
 }
 | 'return' Expr ';' {
@@ -210,6 +248,9 @@ Type :: {
 | 'void' {
   (Just (tokenLineCol $1), AbsLatte.Void (Just (tokenLineCol $1)))
 }
+| Ident {
+  (fst $1, AbsLatte.Class (fst $1)(snd $1)) 
+}
 
 ListType :: {
   (Maybe (Int, Int), [Type (Maybe (Int, Int))]) 
@@ -227,8 +268,8 @@ ListType :: {
 Expr6 :: {
   (Maybe (Int, Int), Expr (Maybe (Int, Int)))
 }
-: Ident {
-  (fst $1, AbsLatte.EVar (fst $1)(snd $1)) 
+: LValue {
+  (fst $1, AbsLatte.ELValue (fst $1)(snd $1)) 
 }
 | Integer {
   (fst $1, AbsLatte.ELitInt (fst $1)(snd $1)) 
@@ -244,6 +285,15 @@ Expr6 :: {
 }
 | String {
   (fst $1, AbsLatte.EString (fst $1)(snd $1)) 
+}
+| 'new' Type {
+  (Just (tokenLineCol $1), AbsLatte.ENewObj (Just (tokenLineCol $1)) (snd $2)) 
+}
+| '(' Type ')null' {
+  (Just (tokenLineCol $1), AbsLatte.ENull (Just (tokenLineCol $1)) (snd $2)) 
+}
+| LValue '.' Ident '(' ListExpr ')' {
+  (fst $1, AbsLatte.EMethod (fst $1)(snd $1)(snd $3)(snd $5)) 
 }
 | '(' Expr ')' {
   (Just (tokenLineCol $1), snd $2)
@@ -323,6 +373,16 @@ ListExpr :: {
 }
 | Expr ',' ListExpr {
   (fst $1, (:) (snd $1)(snd $3)) 
+}
+
+LValue :: {
+  (Maybe (Int, Int), LValue (Maybe (Int, Int)))
+}
+: LValue '.' Ident {
+  (fst $1, AbsLatte.ObjField (fst $1)(snd $1)(snd $3)) 
+}
+| Ident {
+  (fst $1, AbsLatte.Var (fst $1)(snd $1)) 
 }
 
 AddOp :: {
