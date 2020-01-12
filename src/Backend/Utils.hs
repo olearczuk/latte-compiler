@@ -7,30 +7,11 @@ import Control.Monad.Writer
 import qualified Data.Map as M
 import Data.Maybe
 import qualified Data.DList as DL
-
-type InstrPos = Maybe (Int, Int)
-type VarsCounter = Integer
-type VarPos = Int
-type TType = Type InstrPos
-type IItem = Item InstrPos
-type ArgToAddress = (M.Map Ident (VarPos, TType))
-type FuncWithData = (TopDef InstrPos, VarsCounter, ArgToAddress)
-type FunctionsRetTypes = M.Map Ident TType
-type Expression = Expr InstrPos
-type Statement = Stmt InstrPos
-type StringConstants = M.Map String String
-type ClassesInfo = M.Map Ident ArgToAddress
-
-iInt :: TType
-sString :: TType
-bBool :: TType
-iInt = Int Nothing
-sString = Str Nothing
-bBool = Bool Nothing
+import Common.Utils
 
 data Env = Env {
   fRetTypes :: FunctionsRetTypes,
-  variables :: ArgToAddress,
+  variables :: VarToAddress,
   classes :: ClassesInfo,
   linePrefix :: String,
   stringConstants :: StringConstants
@@ -50,10 +31,16 @@ initStore = Store { auxBlockCounter = 0, curLoc = 0 }
 
 type Backend a = (StateT Store (ReaderT Env (Writer (DL.DList String)))) a
 
-getVarInfo :: Ident -> Backend (VarPos, TType)
+getVarInfo :: Ident -> Backend (String, TType)
 getVarInfo x = do
   vars <- asks variables
-  return $ fromJust $ M.lookup x vars
+  case M.lookup x vars of
+    Just (varPos, varType) -> return ((show varPos) ++ "(%ebp)", varType)
+    Nothing -> do
+      let (selfPos, Class _ selfClass) = fromJust $ M.lookup (Ident "self") vars
+      addLine $ "movl " ++ (show selfPos) ++ "(%ebp), %ecx"
+      (fieldPos, fieldType) <- getFieldLoc selfClass x
+      return ((show fieldPos) ++ "(%ecx)", fieldType)
 
 addLine :: String -> Backend ()
 addLine line = do
@@ -95,8 +82,13 @@ saveVarOnStack x varType = do
 getVarLoc :: Ident -> Backend String
 getVarLoc x = do
   vars <- asks variables
-  let loc = fst $ fromJust $ M.lookup x vars
-  return $ (show loc) ++ "(%ebp)"
+  case M.lookup x vars of
+    Just (loc, _) -> return $ (show loc) ++ "(%ebp)"
+    Nothing -> do
+      let (selfPos, Class _ selfClass) = fromJust $ M.lookup (Ident "self") vars
+      addLine $ "movl " ++ (show selfPos) ++ "(%ebp), %ecx"
+      (fieldPos, _) <- getFieldLoc selfClass x
+      return $ (show fieldPos) ++ "(%ecx)"
 
 nextPrefix :: (Env -> Env)
 nextPrefix = \env -> env { linePrefix = linePrefix env ++ "  " }
@@ -115,5 +107,18 @@ setDefaultValue t =
 getFieldLoc :: Ident -> Ident -> Backend (VarPos, TType)
 getFieldLoc classId x = do
   classes_ <- asks classes
-  let toAddress = fromJust $ M.lookup classId classes_
+  let toAddress = fields $ fromJust $ M.lookup classId classes_
   return $ fromJust $ M.lookup x toAddress
+
+getVtableIndex :: Ident -> Ident -> Backend Int
+getVtableIndex classId methodId = do
+  classes_ <- asks classes
+  let vtableIndex_ = vtableIndex $ fromJust $ M.lookup classId classes_
+  return $ fromJust $ M.lookup methodId vtableIndex_
+
+getMethodType :: Ident -> Ident -> Backend TType
+getMethodType classId methodId = do
+  classes_ <- asks classes
+  let methods_ = methods $ fromJust $ M.lookup classId classes_
+  let (_, fType, _) = fromJust $ M.lookup methodId methods_
+  return fType

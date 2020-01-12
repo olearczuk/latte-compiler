@@ -5,15 +5,17 @@ import Grammar.AbsLatte
 import Grammar.PrintLatte
 import Control.Monad.Except
 import Control.Monad.State
+import Common.Utils
 
 getExprType :: Expression -> Frontend TType
 getExprType expr = case expr of
+  -- first check x, then self.x -- DONE
   ELValue _ (Var pos x) -> lookupVariableType x pos
 
   ELValue _ (ObjField pos lval ident) -> do
     exprType <- getExprType $ ELValue Nothing lval
     checkType exprType [cClass] pos lval
-    getClassFieldType exprType (ObjField pos lval ident)
+    getClassFieldType exprType ident expr pos -- (ObjField pos lval ident)
 
   ELitInt _ _ -> return iInt
 
@@ -36,8 +38,9 @@ getExprType expr = case expr of
   EApp _ (Ident "readString") exprs ->
     checkArgs exprs [] expr >> return sString
 
+-- TODO - first check self.f, then f --- DONE
   EApp pos f exprs -> do
-    (fType, fArgs) <- lookupFunctionData f pos
+    (fType, fArgs) <- lookupMethodFunctionData f pos
     checkArgs exprs fArgs expr
     return fType
 
@@ -53,7 +56,13 @@ getExprType expr = case expr of
   ENull pos t ->
     throwError $ (extractLineColumn t pos) ++ " not a class type"
 
-  -- EMethod a (LValue a) Ident [Expr a]
+  -- EMethod a (LValue a) Ident [Expr a] -- DONE
+  EMethod pos lval f exprs -> do
+    exprType <- getExprType $ ELValue Nothing lval
+    checkType exprType [cClass] pos lval
+    (_, fType, args) <- getClassMethodData exprType f $ getLValPos lval
+    checkArgs (ELValue Nothing lval:exprs) args expr
+    return fType
 
   Neg pos negexpr -> do
     exprType <- getExprType negexpr
@@ -96,17 +105,17 @@ getExprType expr = case expr of
     checkArgs :: [Expression] -> [Arg InstrPos] -> Expression -> Frontend ()
     checkArgs [] [] _ = return ()
 
-    checkArgs exprs [] (EApp pos x a) =
-      throwError $ (extractLineColumn (EApp pos x a) pos) ++ " wrong number of arguments"
+    checkArgs exprs [] fExpr =
+      throwError $ (extractLineColumn fExpr $ getExprPos fExpr) ++ " wrong number of arguments"
 
-    checkArgs [] args (EApp pos x a) = 
-      throwError $ (extractLineColumn (EApp pos x a) pos) ++ " wrong number of arguments"
+    checkArgs [] args fExpr = 
+      throwError $ (extractLineColumn fExpr $ getExprPos fExpr) ++ " wrong number of arguments"
 
-    checkArgs (expr:exprsT) ((Arg _ argType _):argsT) (EApp pos x a) = do
+    checkArgs (expr:exprsT) ((Arg _ argType _):argsT) fExpr = do
       exprType <- getExprType expr
       let exprPos = getExprPos expr
-      checkType exprType [argType] exprPos expr
-      checkArgs exprsT argsT (EApp pos x a)
+      checkIfAssignable argType exprType exprPos expr
+      checkArgs exprsT argsT fExpr
 
     checkIfBothSatisfyType :: ExpectedTypes -> Expression -> Expression -> 
           InstrPos -> Frontend TType
@@ -117,8 +126,6 @@ getExprType expr = case expr of
 
       expr2Type <- getExprType expr2
       let expr2Pos = getExprPos expr2
-      checkType expr2Type [expr1Type] expr2Pos expr2
-
       checkIfExactSameType expr2Type expr1Type expr2Pos expr2
 
       return expr1Type
@@ -131,6 +138,9 @@ getExprPos expr = case expr of
   ELitFalse pos -> pos
   EApp pos _ _ -> pos
   EString pos _ -> pos
+  ENewObj pos _ -> pos
+  ENull pos _ -> pos
+  EMethod pos _ _ _ -> pos
   Neg pos _ -> pos
   Not pos _ -> pos
   EMul pos _ _ _ -> pos

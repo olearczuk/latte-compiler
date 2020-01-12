@@ -9,5 +9,7 @@ src/Frontend/*.hi
 src/Frontend/*.o
 src/Grammar/*.hi
 src/Grammar/*.o
+src/Common/*.hi
+src/Common/*.o
 tests
 latc_x86

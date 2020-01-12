@@ -5,6 +5,7 @@ import Grammar.PrintLatte
 import Backend.Expression
 import Backend.Utils
 import Control.Monad.Reader
+import Common.Utils
 
 genStmts :: [Statement] -> Backend ()
 genStmts [] = return ()
@@ -26,8 +27,8 @@ genStmt stmt = case stmt of
     local f $ (genStmt $ Decl pos varType itemsT)
 
   Ass _ (Var _ x) expr -> do
-    loc <- getVarLoc x
     genExpr expr
+    loc <- getVarLoc x
     addLine $ "movl %eax, " ++ loc
     return id
 

@@ -3,7 +3,7 @@ module Frontend.Statement where
 import Grammar.AbsLatte
 import Frontend.Utils
 import Frontend.Expression
-
+import Common.Utils
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -37,7 +37,7 @@ checkStmt stmt = case stmt of
     t <- getExprType $ ELValue Nothing lval
     exprType <- getExprType expr
     let exprPos = getExprPos expr
-    checkType exprType [t] exprPos expr
+    checkIfAssignable t exprType exprPos expr
     return (id, False)
 
   Incr pos lval -> do
@@ -107,5 +107,5 @@ execSingleVarDecl item varType =
       checkIfVariableDefined x pos item
       exprType <- getExprType expr
       let exprPos = getExprPos expr
-      checkType exprType [varType] exprPos expr
+      checkIfAssignable varType exprType exprPos expr
       addVariable x varType

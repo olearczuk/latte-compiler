@@ -3,12 +3,13 @@ module Backend.Expression where
 import Backend.Utils
 import Grammar.AbsLatte
 import Grammar.PrintLatte
+import Common.Utils
 
 genExpr :: Expression -> Backend TType
 genExpr expr = case expr of
   ELValue _ (Var _ x) -> do
-    (varPos, varType) <- getVarInfo x
-    addLine $ "movl " ++ (show varPos) ++ "(%ebp), %eax"
+    (varStr, varType) <- getVarInfo x
+    addLine $ "movl " ++ varStr ++ ", %eax"
     return varType
 
   ELValue _ (ObjField _ lval x) -> do
@@ -49,6 +50,15 @@ genExpr expr = case expr of
     return t
 
   -- EMethod a (LValue a) Ident [Expr a]
+  EMethod _ lval methodId exprs -> do
+    pushArguments exprs
+    Class _ classId <- genExpr $ ELValue Nothing lval
+    addLine "pushl %eax"
+    addLine $ "movl (%eax), %eax"
+    vtableIndex_ <- getVtableIndex classId methodId
+    addLine $ "call *" ++ (show $ 4 * vtableIndex_) ++ "(%eax)" 
+    addLine $ "addl $" ++ (show (4 + 4 * (length exprs))) ++ ", %esp"
+    getMethodType classId methodId
 
   Neg _ negexpr -> do
     exprType <- genExpr negexpr

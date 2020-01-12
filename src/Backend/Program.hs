@@ -10,11 +10,17 @@ import Control.Monad.Reader
 import Control.Monad.Writer
 import qualified Data.Map as M
 import qualified Data.DList as DL
+import Common.Utils
 
-genProgram :: ([FuncWithData], FunctionsRetTypes, StringConstants, ClassesInfo) -> String
-genProgram (funcWithData, fRetTypes, strConsts, classes_) =
-  let res = execWriter (runReaderT (evalStateT (genDecl funcWithData) initStore) 
-                        $ initEnv fRetTypes strConsts classes_) in 
+genProgram :: FrontendResult -> String
+genProgram frontendResult =
+  let fWithData = funcWithData frontendResult
+      fRetTypes = funcRetTypes frontendResult
+      sConsts = strConsts frontendResult
+      clInfo = classesInfo frontendResult
+      mWithData = methodsWithData frontendResult in
+  let res = execWriter (runReaderT (evalStateT (genDecl fWithData mWithData) initStore) 
+                        $ initEnv fRetTypes sConsts clInfo) in 
   combineLines res
 
 combineLines :: DL.DList String -> String
