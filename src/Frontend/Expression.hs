@@ -40,9 +40,12 @@ getExprType expr = case expr of
 
 -- TODO - first check self.f, then f --- DONE
   EApp pos f exprs -> do
-    (fType, fArgs) <- lookupMethodFunctionData f pos
-    checkArgs exprs fArgs expr
-    return fType
+    fData <- lookupMethodFunctionData f pos
+    case fData of
+      Just (fType, fArgs) -> checkArgs exprs fArgs expr >> return fType
+      Nothing -> 
+        let lval = (Var pos (Ident "self")) in
+        getExprType $ EMethod pos lval f exprs
 
   EString _ s -> addStrConstant s >> return sString
 

@@ -26,28 +26,22 @@ genStmt stmt = case stmt of
     f <- genSingleVarDecl itemsH varType
     local f $ (genStmt $ Decl pos varType itemsT)
 
-  Ass _ (Var _ x) expr -> do
-    genExpr expr
-    loc <- getVarLoc x
-    addLine $ "movl %eax, " ++ loc
-    return id
 
-  Ass _ (ObjField _ lval x) expr -> do
+  Ass _ lval expr -> do
     genExpr expr
     pushEax
-    (Class _ classId) <- genExpr $ ELValue Nothing lval
+    loc <- getLValLoc lval
     popEcx
-    (varPos, _) <- getFieldLoc classId x
-    addLine $ "movl %ecx, " ++ (show varPos) ++ "(%eax)"
+    addLine $ "movl %ecx, " ++ loc
     return id
 
-  Incr _ (Var _ x) -> do
-    loc <- getVarLoc x
+  Incr _ lval -> do
+    loc <- getLValLoc lval
     addLine $ "addl $1, " ++ loc
     return id
 
-  Decr _ (Var _ x) -> do
-    loc <- getVarLoc x
+  Decr _ lval -> do
+    loc <- getLValLoc lval
     addLine $ "subl $1, " ++ loc
     return id
 
@@ -90,6 +84,13 @@ genStmt stmt = case stmt of
   SExp _ expr -> genExpr expr >> return id
 
   where
+    getLValLoc :: LValue InstrPos -> Backend String
+    getLValLoc (Var _ x) = getVarLoc x
+    getLValLoc (ObjField _ lval x) = do
+      (Class _ classId) <- genExpr $ ELValue Nothing lval
+      (varPos, _) <- getFieldLoc classId x
+      return $ (show varPos) ++ "(%eax)"
+
     genSingleVarDecl :: IItem -> TType -> Backend (Env -> Env)
     genSingleVarDecl item varType = do
       loc <- getCurLoc

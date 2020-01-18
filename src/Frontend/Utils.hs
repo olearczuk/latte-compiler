@@ -251,11 +251,16 @@ checkArgTypes _ _ f pos =
   throwError $ (extractLineColumn f pos) ++ " wrong number of arguments"
 
 
-lookupMethodFunctionData :: Ident -> InstrPos -> Frontend FunctionData
+lookupMethodFunctionData :: Ident -> InstrPos -> Frontend (Maybe FunctionData)
 lookupMethodFunctionData f pos = do
   vars <- asks variables
   case M.lookup (Ident "self") vars of
-    Nothing -> lookupFunctionData f pos
+    Nothing -> do
+      fData <- lookupFunctionData f pos
+      return $ Just fData
     Just (selfType, _) -> do
-      (_, fType, args) <- getClassMethodData selfType f pos
-      return (fType, args)
+      (getClassMethodData selfType f pos >> return Nothing) 
+      `catchError`
+      (\_ -> do
+        fData <- lookupFunctionData f pos
+        return $ Just fData)

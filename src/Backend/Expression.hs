@@ -31,10 +31,16 @@ genExpr expr = case expr of
     return bBool
 
   EApp _ f exprs -> do
-    pushArguments exprs
-    addLine $ "call " ++ (printTree f)
-    addLine $ "addl $" ++ (show (4 * (length exprs))) ++ ", %esp"
-    getFunctionType f
+    ifSelfFunction <- checkIfSelfFunction f
+    if ifSelfFunction
+      then 
+        let lval = (Var Nothing (Ident "self")) in
+        genExpr $ EMethod Nothing lval f exprs
+      else do
+        pushArguments exprs
+        addLine $ "call " ++ (printTree f)
+        addLine $ "addl $" ++ (show (4 * (length exprs))) ++ ", %esp"
+        getFunctionType f
 
   EString _ s -> do
     curConst <- getStrConst s
@@ -101,23 +107,19 @@ genExpr expr = case expr of
     genExpr expr1
     popEcx
 
-    curBlock <- curBlockCounter
-    let curRel = "__rel_" ++ curBlock
-
     case exprType of
       Str _ -> do
         addLines ["pushl %ecx", "pushl %eax", "call compareStrings"]
         addLine "cmp $0, %eax"
       _ -> addLine "cmp %ecx, %eax"
     case rel of
-      LTH _ -> addLine $ "jl " ++ curRel
-      LE _ -> addLine $ "jle " ++ curRel
-      GTH _ -> addLine $ "jg " ++ curRel
-      GE _ -> addLine $ "jge " ++ curRel
-      EQU _ -> addLine $ "je " ++ curRel
-      NE _ -> addLine $ "jne " ++ curRel
-    addLines ["movl $0, %eax", "jmp " ++ curRel ++ "_end",
-              curRel ++ ": movl $1, %eax", curRel ++ "_end:"]
+      LTH _ -> addLine "setl %cl"
+      LE _ -> addLine "setle %cl"
+      GTH _ -> addLine "setg %cl"
+      GE _ -> addLine "setge %cl"
+      EQU _ -> addLine "sete %cl"
+      NE _ -> addLine "setne %cl"
+    addLines ["xorl %eax, %eax", "mov %cl, %al"]
     return exprType
 
   EAnd _ expr1 expr2 -> do

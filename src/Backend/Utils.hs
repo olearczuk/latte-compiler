@@ -38,9 +38,9 @@ getVarInfo x = do
     Just (varPos, varType) -> return ((show varPos) ++ "(%ebp)", varType)
     Nothing -> do
       let (selfPos, Class _ selfClass) = fromJust $ M.lookup (Ident "self") vars
-      addLine $ "movl " ++ (show selfPos) ++ "(%ebp), %ecx"
+      addLine $ "movl " ++ (show selfPos) ++ "(%ebp), %eax"
       (fieldPos, fieldType) <- getFieldLoc selfClass x
-      return ((show fieldPos) ++ "(%ecx)", fieldType)
+      return ((show fieldPos) ++ "(%eax)", fieldType)
 
 addLine :: String -> Backend ()
 addLine line = do
@@ -86,9 +86,9 @@ getVarLoc x = do
     Just (loc, _) -> return $ (show loc) ++ "(%ebp)"
     Nothing -> do
       let (selfPos, Class _ selfClass) = fromJust $ M.lookup (Ident "self") vars
-      addLine $ "movl " ++ (show selfPos) ++ "(%ebp), %ecx"
+      addLine $ "movl " ++ (show selfPos) ++ "(%ebp), %eax"
       (fieldPos, _) <- getFieldLoc selfClass x
-      return $ (show fieldPos) ++ "(%ecx)"
+      return $ (show fieldPos) ++ "(%eax)"
 
 nextPrefix :: (Env -> Env)
 nextPrefix = \env -> env { linePrefix = linePrefix env ++ "  " }
@@ -122,3 +122,15 @@ getMethodType classId methodId = do
   let methods_ = methods $ fromJust $ M.lookup classId classes_
   let (_, fType, _) = fromJust $ M.lookup methodId methods_
   return fType
+
+checkIfSelfFunction :: Ident -> Backend Bool
+checkIfSelfFunction f = do
+  vars <- asks variables
+  case M.lookup (Ident "self") vars of
+    Nothing -> return False
+    Just (_, Class _ classId) -> do
+      classes_ <- asks classes
+      let classInfo = fromJust $ M.lookup classId classes_
+      case M.lookup f $ methods classInfo of
+        Nothing -> return False
+        Just _ -> return True
