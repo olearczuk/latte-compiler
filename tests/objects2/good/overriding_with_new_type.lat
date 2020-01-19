@@ -1,0 +1,32 @@
+int main() {
+	Printer1 p = new Printer1;
+	p.counter = 123;
+	Printer1 new_p = p.returnPrinter();
+	new_p.print();
+
+
+	Printer2 p2 = new Printer2;
+	p2.counter = 123;
+	new_p = p2.returnPrinter();
+	new_p.print();
+
+	return 0;
+}
+
+class Printer1 {
+	int counter;
+
+	Printer1 returnPrinter() {
+		return new Printer1;
+	}
+
+	void print() {
+		printInt(counter);
+	}
+}
+
+class Printer2 extends Printer1 {
+	Printer2 returnPrinter() {
+		return self;
+	}
+}

@@ -101,8 +101,7 @@ genClasses = do
         addLine "movl %eax, %edi"
         addLine $ "movl $" ++ (printTree cIdent) ++ ", (%edi)"
         mapM_ setAttr $ M.toList fields_
-        addLine "movl %edi, %eax"
-        addLines ["popl %edi", "leave", "ret"]
+        addLines ["movl %edi, %eax", "popl %edi", "leave", "ret"]
       genClassesAux tail
 
     setAttr :: (Ident, (VarPos, TType)) -> Backend ()

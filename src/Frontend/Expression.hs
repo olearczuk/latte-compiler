@@ -6,16 +6,16 @@ import Grammar.PrintLatte
 import Control.Monad.Except
 import Control.Monad.State
 import Common.Utils
+import qualified Data.Map as M
 
 getExprType :: Expression -> Frontend TType
 getExprType expr = case expr of
-  -- first check x, then self.x -- DONE
   ELValue _ (Var pos x) -> lookupVariableType x pos
 
   ELValue _ (ObjField pos lval ident) -> do
     exprType <- getExprType $ ELValue Nothing lval
     checkType exprType [cClass] pos lval
-    getClassFieldType exprType ident expr pos -- (ObjField pos lval ident)
+    getClassFieldType exprType ident expr pos
 
   ELitInt _ _ -> return iInt
 
@@ -38,7 +38,6 @@ getExprType expr = case expr of
   EApp _ (Ident "readString") exprs ->
     checkArgs exprs [] expr >> return sString
 
--- TODO - first check self.f, then f --- DONE
   EApp pos f exprs -> do
     fData <- lookupMethodFunctionData f pos
     case fData of
@@ -59,7 +58,6 @@ getExprType expr = case expr of
   ENull pos t ->
     throwError $ (extractLineColumn t pos) ++ " not a class type"
 
-  -- EMethod a (LValue a) Ident [Expr a] -- DONE
   EMethod pos lval f exprs -> do
     exprType <- getExprType $ ELValue Nothing lval
     checkType exprType [cClass] pos lval
@@ -108,11 +106,11 @@ getExprType expr = case expr of
     checkArgs :: [Expression] -> [Arg InstrPos] -> Expression -> Frontend ()
     checkArgs [] [] _ = return ()
 
-    checkArgs exprs [] fExpr =
-      throwError $ (extractLineColumn fExpr $ getExprPos fExpr) ++ " wrong number of arguments"
+    checkArgs exprs [] fExpr = throwError $ 
+      (extractLineColumn fExpr $ getExprPos fExpr) ++ " wrong number of arguments"
 
-    checkArgs [] args fExpr = 
-      throwError $ (extractLineColumn fExpr $ getExprPos fExpr) ++ " wrong number of arguments"
+    checkArgs [] args fExpr = throwError $ 
+      (extractLineColumn fExpr $ getExprPos fExpr) ++ " wrong number of arguments"
 
     checkArgs (expr:exprsT) ((Arg _ argType _):argsT) fExpr = do
       exprType <- getExprType expr
@@ -129,9 +127,19 @@ getExprType expr = case expr of
 
       expr2Type <- getExprType expr2
       let expr2Pos = getExprPos expr2
-      checkIfExactSameType expr2Type expr1Type expr2Pos expr2
-
+      -- this is in case of comparing inheriting classes
+      checkIfAssignable expr1Type expr2Type expr1Pos expr1
+        `catchError`(\_ -> checkIfAssignable expr2Type expr1Type expr2Pos expr2)
       return expr1Type
+
+    addStrConstant :: String -> Frontend ()
+    addStrConstant s = do
+      strConst <- gets stringConstants
+      case M.lookup s strConst of
+        Nothing -> do
+          let strConst' = M.insert s ("LC" ++ (show $ M.size strConst)) strConst
+          modify $ \store -> store {stringConstants = strConst'}
+        Just _ -> return ()
 
 getExprPos :: Expression -> InstrPos
 getExprPos expr = case expr of

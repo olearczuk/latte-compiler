@@ -95,6 +95,9 @@ checkStmt stmt = case stmt of
   SExp _ expr ->
     getExprType expr >> return (id, False)
 
+  where
+    nextBlockNumber :: Env -> Env
+    nextBlockNumber env = env { blockNumber = 1 + blockNumber env }
 
 execSingleVarDecl :: IItem -> TType -> Frontend (Env -> Env)
 execSingleVarDecl item varType =
@@ -109,3 +112,11 @@ execSingleVarDecl item varType =
       let exprPos = getExprPos expr
       checkIfAssignable varType exprType exprPos expr
       addVariable x varType
+  where
+    getPosFromType :: TType -> Maybe (Int, Int)
+    getPosFromType tType = 
+      case tType of
+        Int pos -> pos
+        Str pos -> pos
+        Bool pos -> pos
+        Void pos -> pos

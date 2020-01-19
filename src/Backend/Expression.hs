@@ -96,8 +96,7 @@ genExpr expr = case expr of
       Plus _ -> case exprType of
         Int _ -> addLine "addl %ecx, %eax"
         Str _ -> 
-          addLines ["pushl %ecx", "pushl %eax", "call addStrings", 
-                    "addl $8, %esp"]
+          addLines ["pushl %ecx", "pushl %eax", "call addStrings", "addl $8, %esp"]
       Minus _ -> addLine "subl %ecx, %eax"
     return exprType
 
