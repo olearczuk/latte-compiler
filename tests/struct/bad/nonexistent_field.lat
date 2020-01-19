@@ -1,0 +1,9 @@
+int main() {
+	Class c = new Class;
+	printInt(c.field2);
+	return 0;
+}
+
+class Class {
+	int field1;
+}

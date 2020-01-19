@@ -70,6 +70,8 @@ def runFile(f, is_silent):
             print("\n------ DIFF ------")
             system(diff_command)
             should_end = True
+        asembly_fle_name = binary_name + ".s"
+        system("rm -f " + binary_name + " " + res_file_name + " " + asembly_fle_name)
     else:
         print(red)
         print(res.stderr.decode("utf-8"))

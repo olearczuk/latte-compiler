@@ -1,0 +1,15 @@
+int main() {
+	return 0;
+}
+
+class Class1 extends Class2 {
+	int field1;
+}
+
+class Class2 extends Class3 {
+	int field2;
+}
+
+class Class3 extends Class1 {
+	int field3;
+}

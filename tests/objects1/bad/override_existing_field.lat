@@ -1,0 +1,15 @@
+int main() {
+	return 0;
+}
+
+class Class1 {
+	int field;
+
+	int get_field() {
+		return field;
+	}
+}
+
+class Class2 extends Class1 {
+	int field;
+}

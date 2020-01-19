@@ -1,0 +1,28 @@
+int main() {
+	fieldClass c = new fieldClass;
+	c.setField("foo bar");
+	printString(c.getField());
+	printField();
+	return 0; 
+}
+
+void printField() {
+	printString("Global printField");
+}
+
+class fieldClass {
+	string field;
+
+	void setField(string f) {
+		field = f;
+	}
+
+	string getField() {
+		printField();
+		return field;
+	}
+
+	void printField() {
+		printString("Printing field: " + field);
+	}
+}

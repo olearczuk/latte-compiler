@@ -1,0 +1,31 @@
+int main () {
+  Counter c;
+  c = new Counter;
+  c.printer = new Printer;
+  c.incr();
+  c.printer.print(c);
+  return 0;
+}
+
+class Counter {
+  int val;
+
+  Printer printer;
+  
+  Counter incr () {
+    val++;
+    self.val++;
+    printInt(self.value());
+    return self;
+  }
+
+  int value () {return self.val;}
+
+}
+
+class Printer {
+  void print (Counter c) {
+    printInt(c.value());
+  }
+}
+

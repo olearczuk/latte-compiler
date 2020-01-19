@@ -1,0 +1,24 @@
+int main () {
+  Counter c;
+  c = new Counter;
+  c.incr();
+  printInt(c.value());
+  return 0;
+}
+
+class Counter {
+  int val;
+  Counter incr () {
+    val++;
+    self.val++;
+    printInt(value());
+    return self;
+  }
+
+  int value () {return self.val;}
+
+}
+
+int global_const_value() {
+  return 123;
+}

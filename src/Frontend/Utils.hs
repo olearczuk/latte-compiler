@@ -187,7 +187,7 @@ getClassMethodData (Class _ classId) f pos = do
   classInfo <- getClassInfo classId pos
   case M.lookup f $ methods classInfo of
     Nothing -> throwError $ (extractLineColumn (Class pos classId) pos) ++ 
-      " class has no method" ++ (printTree f)
+      " class has no method " ++ (printTree f)
     Just methodData -> return methodData
 
 getClassInfo :: Ident -> InstrPos -> Frontend ClassInfo

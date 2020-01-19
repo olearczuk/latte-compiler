@@ -95,14 +95,17 @@ genClasses = do
       let fields_ = fields classInfo
       addLine $ "__constructor_" ++ (printTree cIdent) ++ ":"
       local nextPrefix $ do
+        addLines ["pushl %ebp", "movl %esp, %ebp", "pushl %edi"]
         addLine $ "pushl $" ++ (show $ 4 + 4 * M.size fields_)
         addLines  ["call allocateMemory",  "addl $4, %esp"]
-        addLine $ "movl $" ++ (printTree cIdent) ++ ", (%eax)"
+        addLine "movl %eax, %edi"
+        addLine $ "movl $" ++ (printTree cIdent) ++ ", (%edi)"
         mapM_ setAttr $ M.toList fields_
-        addLine "ret"
+        addLine "movl %edi, %eax"
+        addLines ["popl %edi", "leave", "ret"]
       genClassesAux tail
 
     setAttr :: (Ident, (VarPos, TType)) -> Backend ()
     setAttr (_, (loc, xType)) = do
       str <- setDefaultValue xType
-      addLine $ str ++ (show loc) ++ "(%eax)"
+      addLine $ str ++ (show loc) ++ "(%edi)"
