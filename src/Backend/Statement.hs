@@ -87,9 +87,11 @@ genStmt stmt = case stmt of
     getLValLoc :: LValue InstrPos -> Backend String
     getLValLoc (Var _ x) = getVarLoc x
     getLValLoc (ObjField _ lval x) = do
-      (Class _ classId) <- genExpr $ ELValue Nothing lval
-      (varPos, _) <- getFieldLoc classId x
-      return $ (show varPos) ++ "(%eax)"
+      exprType <- genExpr $ ELValue Nothing lval
+      case exprType of
+        Class _ classId -> do
+          (varPos, _) <- getFieldLoc classId x
+          return $ (show varPos) ++ "(%eax)"
 
     genSingleVarDecl :: IItem -> TType -> Backend (Env -> Env)
     genSingleVarDecl item varType = do

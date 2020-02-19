@@ -1,6 +1,26 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+typedef unsigned int size_t;
+extern int printf(const char *format, ...);
+extern int scanf(const char *format, ...);
+extern void exit(int status);
+extern size_t strlen(const char *s);
+extern void *malloc(size_t size);
+extern char *strcpy (char* strTo, const char* strFrom);
+extern int strcmp(const char *s1, const char *s2);
+
+struct __sFile
+{
+    int unused;
+};
+typedef struct __sFile FILE;
+
+size_t getline(char **lineptr, size_t *n, FILE *stream);
+
+
+extern FILE *stdin;
+extern FILE *stderr;
+
+#define stdin stdin
+#define stderr stderr
 
 void printInt(int n) {
     printf("%d\n", n);

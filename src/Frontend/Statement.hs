@@ -54,7 +54,7 @@ checkStmt stmt = case stmt of
     exprType <- getExprType expr
     let exprPos = getExprPos expr
     fType <- asks actFunctionType
-    checkType exprType [fType] exprPos expr
+    checkIfAssignable fType exprType exprPos expr
     return (id, True)
 
   VRet pos -> do

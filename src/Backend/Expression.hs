@@ -13,10 +13,12 @@ genExpr expr = case expr of
     return varType
 
   ELValue _ (ObjField _ lval x) -> do
-    Class _ classId <- genExpr $ ELValue Nothing lval
-    (varPos, varType) <- getFieldLoc classId x
-    addLine $ "movl " ++ (show varPos) ++ "(%eax), %eax"
-    return varType
+    exprType <- genExpr $ ELValue Nothing lval
+    case exprType of
+      Class _ classId -> do
+        (varPos, varType) <- getFieldLoc classId x
+        addLine $ "movl " ++ (show varPos) ++ "(%eax), %eax"
+        return varType
 
   ELitInt _ n -> do
     addLine $ "movl $" ++ (show n) ++ ", %eax"
@@ -58,13 +60,15 @@ genExpr expr = case expr of
   -- EMethod a (LValue a) Ident [Expr a]
   EMethod _ lval methodId exprs -> do
     pushArguments exprs
-    Class _ classId <- genExpr $ ELValue Nothing lval
-    addLine "pushl %eax"
-    addLine $ "movl (%eax), %eax"
-    vtableIndex_ <- getVtableIndex classId methodId
-    addLine $ "call *" ++ (show $ 4 * vtableIndex_) ++ "(%eax)" 
-    addLine $ "addl $" ++ (show (4 + 4 * (length exprs))) ++ ", %esp"
-    getMethodType classId methodId
+    exprType <- genExpr $ ELValue Nothing lval
+    case exprType of
+      Class _ classId -> do
+        addLine "pushl %eax"
+        addLine $ "movl (%eax), %eax"
+        vtableIndex_ <- getVtableIndex classId methodId
+        addLine $ "call *" ++ (show $ 4 * vtableIndex_) ++ "(%eax)" 
+        addLine $ "addl $" ++ (show (4 + 4 * (length exprs))) ++ ", %esp"
+        getMethodType classId methodId
 
   Neg _ negexpr -> do
     exprType <- genExpr negexpr
